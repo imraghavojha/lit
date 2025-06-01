@@ -2,7 +2,8 @@ import objects.BlobObject;
 
 public class Main{
     public static void main(String[] args) {
-        BlobObject blob1 = new BlobObject("sample/blobSample.txt");
+
+        BlobObject blob1 = new BlobObject("sample/sampledir2/blobSample1.txt");
 
         String sample_sha1 = blob1.getSha1();
 
