@@ -8,11 +8,12 @@ public class CommandHandler {
     
     public static void handleInit(String command){
         if (command.equals("init")){
-            Path litPath = Paths.get ("sample/.lit");
-            Path objectsPath = Paths.get("sample/.lit/objects");
-            Path refPath = Paths.get("sample/.lit/refs/heads");
-            Path HEADPath = Paths.get("sample/.lit/HEAD");
-            Path mainPath = Paths.get("sample/.lit/refs/heads/main");
+            Path currentDirectory = Paths.get("");
+            Path litPath = currentDirectory.resolve(".lit");
+            Path objectsPath = litPath.resolve("objects");
+            Path refPath = litPath.resolve("refs/heads");
+            Path HEADPath = litPath.resolve("HEAD");
+            Path mainPath = refPath.resolve("main");
             try {
                 // creating .lit directory and subdirectories
                 Files.createDirectory(litPath);
