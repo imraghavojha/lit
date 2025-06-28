@@ -23,12 +23,16 @@ public class CommandHandler {
                 Files.createDirectories(refPath);
 
                 Files.createFile(HEADPath);
+                Files.write(HEADPath, "ref: refs/heads/main".getBytes());
 
                 Files.createFile(mainPath);
 
             } catch (IOException e) {
-                e.printStackTrace();
+                System.err.println("Error: Failed to initialize repository.");
+                System.err.println("Reason: " + e.getMessage());
+                // cleanup logic to be added later in case any one of the creation is success
+               
             }
-        }
     }
+}
 }
