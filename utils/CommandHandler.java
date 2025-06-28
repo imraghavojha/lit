@@ -6,8 +6,7 @@ import java.nio.file.*;
 
 public class CommandHandler {
     
-    public static void handleInit(String command){
-        if (command.equals("init")){
+    public static void handleInit(){
             Path currentDirectory = Paths.get("");
             Path litPath = currentDirectory.resolve(".lit");
             Path objectsPath = litPath.resolve("objects");
@@ -33,6 +32,5 @@ public class CommandHandler {
                 // cleanup logic to be added later in case any one of the creation is success
                
             }
-    }
 }
 }
