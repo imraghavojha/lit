@@ -13,6 +13,12 @@ public class CommandHandler {
             Path refPath = litPath.resolve("refs/heads");
             Path HEADPath = litPath.resolve("HEAD");
             Path mainPath = refPath.resolve("main");
+
+            if(Files.exists(litPath)){
+                System.err.println("The repo has already been initialized!");
+                return;
+            }
+            
             try {
                 // creating .lit directory and subdirectories
                 Files.createDirectory(litPath);
