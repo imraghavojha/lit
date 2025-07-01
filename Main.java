@@ -1,3 +1,4 @@
+import objects.BlobObject;
 import utils.CommandHandler;
 
 public class Main{
@@ -12,6 +13,11 @@ public class Main{
         switch (command) {
             case "init":
                 CommandHandler.handleInit();
+                break;
+             case "test-blob":
+                // Test saving a blob for testfile.txt (echo "Hello, Lit!" > testfile.txt)
+                BlobObject blob = new BlobObject("testfile.txt");
+                blob.save();
                 break;
 
         // Future commands to be added here
