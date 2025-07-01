@@ -1,5 +1,10 @@
+import java.io.IOException;
+import java.nio.file.Paths;
+
 import objects.BlobObject;
+import objects.TreeObject;
 import utils.CommandHandler;
+import utils.TreeBuilder;
 
 public class Main{
     public static void main(String[] args) {
@@ -14,10 +19,20 @@ public class Main{
             case "init":
                 CommandHandler.handleInit();
                 break;
-             case "test-blob":
+            case "test-blob":
                 // Test saving a blob for testfile.txt (echo "Hello, Lit!" > testfile.txt)
                 BlobObject blob = new BlobObject("testfile.txt");
                 blob.save();
+                break;
+            
+              case "test-tree":
+                // Test saving a tree for the current directory (excluding .lit)
+                try {
+                    TreeObject tree = TreeBuilder.buildTree(Paths.get("."));
+                    tree.save();
+                } catch (IOException e) {
+                    System.err.println("Failed to build or save tree: " + e.getMessage());
+                }
                 break;
 
         // Future commands to be added here
