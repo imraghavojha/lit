@@ -106,4 +106,30 @@ public class CommitObject {
     public String getCommitMessage() {
         return commitMessage;
     }
+
+    public void save() {
+        String sha1 = getSha1();
+        if (sha1 == null || sha1.isEmpty()) {
+            System.err.println("Commit SHA-1 is null or empty. Cannot save commit.");
+            return;
+        }
+
+        java.nio.file.Path objectsDir = java.nio.file.Paths.get(".lit", "objects");
+        java.nio.file.Path commitPath = objectsDir.resolve(sha1);
+
+        try {
+            if (!java.nio.file.Files.exists(objectsDir)) {
+                java.nio.file.Files.createDirectories(objectsDir);
+            }
+            if (!java.nio.file.Files.exists(commitPath)) {
+                byte[] contentBytes = serializeContentToBytes();
+                java.nio.file.Files.write(commitPath, contentBytes);
+                System.out.println("Commit saved: " + commitPath.toString());
+            } else {
+                System.out.println("Commit already exists: " + commitPath.toString());
+            }
+        } catch (java.io.IOException e) {
+            System.err.println("Failed to save commit: " + e.getMessage());
+        }
+    }
 }
