@@ -3,9 +3,6 @@ package objects;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
@@ -100,35 +97,4 @@ public class TreeObject {
             return null;
         }
     }
-
-    public void save(){
-        String sha1 = getSha1Id();
-        if(sha1 == null || sha1.isEmpty()){
-            System.err.println("Tree SHA-1 is null or empty. Cannot save tree.");
-            return;
-        }
-        Path objectsDir = Paths.get(".lit", "objects");
-        Path treePath = objectsDir.resolve(sha1);
-
-        try{
-            if(!Files.exists(objectsDir)){
-                Files.createDirectories(objectsDir);
-            }
-            if (!Files.exists(treePath)) {
-                byte[] contentBytes = serializeContentToBytes();
-
-                if (contentBytes == null) {
-                    System.err.println("Failed to serialize tree content.");
-                    return;
-                }
-                Files.write(treePath, contentBytes);
-                System.out.println("Tree saved: " + treePath.toString());
-            } else {
-                System.out.println("Tree already exists: " + treePath.toString());
-            }
-        } catch (IOException e) {
-            System.err.println("Failed to save tree: " + e.getMessage());
-        }
-    }
-
 }
