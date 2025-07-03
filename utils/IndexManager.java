@@ -13,11 +13,6 @@ public class IndexManager {
     private List<IndexEntry> indexEntries;
     private Path indexPath;
 
-    /**
-     * Initializes the IndexManager, setting up the path to the .lit/index file
-     * and reading any existing entries into memory.
-     * @throws IOException If an I/O error occurs during index file operations.
-     */
     public IndexManager() throws IOException {
         // Resolve the .lit/index path relative to the current working directory
         Path currentDirectory = Paths.get("").toAbsolutePath();
@@ -28,7 +23,7 @@ public class IndexManager {
         // Attempt to read existing index entries
         readIndex();
     }
-    
+
     private void readIndex() throws IOException {
         if (Files.exists(indexPath)) {
             // Read all lines from the index file
@@ -48,4 +43,20 @@ public class IndexManager {
         // If the file doesn't exist, indexEntries remains an empty ArrayList.
     }
 
+    public void addEntry(IndexEntry newEntry) {
+        // Iterate through existing entries to find if this file path already exists
+        boolean found = false;
+        for (int i = 0; i < indexEntries.size(); i++) {
+            if (indexEntries.get(i).getFilePath().equals(newEntry.getFilePath())) {
+                // If found, remove the old entry and add the new one
+                indexEntries.set(i, newEntry); // Replace existing entry
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // If not found, add the new entry to the list
+            indexEntries.add(newEntry);
+        }
+    }
 }
