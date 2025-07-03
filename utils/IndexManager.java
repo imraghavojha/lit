@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-//import java.util.stream.Collectors; 
+import java.util.stream.Collectors; 
 
 public class IndexManager {
     private List<IndexEntry> indexEntries;
@@ -58,5 +58,22 @@ public class IndexManager {
             // If not found, add the new entry to the list
             indexEntries.add(newEntry);
         }
+    }
+
+    public void writeIndex() throws IOException {
+        // Convert the list of IndexEntry objects to a list of strings
+        // using the toString() method implemented in IndexEntry.
+        List<String> linesToWrite = indexEntries.stream()
+                                              .map(IndexEntry::toString)
+                                              .collect(Collectors.toList());
+
+        // Write all lines to the index file, overwriting existing content.
+        // Files.write creates the file if it doesn't exist.
+        Files.write(indexPath, linesToWrite);
+    }
+
+    // getter to inspect the current entries for debugging or other commands
+    public List<IndexEntry> getIndexEntries() {
+        return new ArrayList<>(indexEntries); // Return a copy to prevent external modification
     }
 }
