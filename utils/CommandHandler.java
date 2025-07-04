@@ -72,6 +72,7 @@ public class CommandHandler {
             return;
         }
 
+        blob.save();
         // Determine the file mode (permissions)
         // Currently only works for 100644 (regular file)
         String fileMode = "100644";
