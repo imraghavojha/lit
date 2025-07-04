@@ -13,6 +13,20 @@ public class Main{
             case "init":
                 CommandHandler.handleInit();
                 break;
+        
+            case "add": 
+                if (args.length < 2) {
+                    System.err.println("Error: No file specified for 'add' command.");
+                    System.out.println("Usage: lit add <file>");
+                    return;
+                }
+                String filePath = args[1]; // Get the file path from the arguments
+                try {
+                    CommandHandler.handleAdd(filePath); // Call the new handleAdd method
+                } catch (Exception e) {
+                    System.err.println("Error staging file '" + filePath + "': " + e.getMessage());
+                }
+                break;
 
         // Future commands to be added here
             default:
