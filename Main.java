@@ -1,4 +1,10 @@
+import java.io.IOException;
+import java.nio.file.Paths;
+
+import objects.BlobObject;
+import objects.TreeObject;
 import utils.CommandHandler;
+import utils.TreeBuilder;
 
 public class Main{
     public static void main(String[] args) {
@@ -26,6 +32,12 @@ public class Main{
                 } catch (Exception e) {
                     System.err.println("Error staging file '" + filePath + "': " + e.getMessage());
                 }
+                break;
+
+                objects.CommitObject commit = new objects.CommitObject(
+                    treeSha1, parentSha1, authorName, authorEmail, commitMessage
+                );
+                commit.save();
                 break;
 
         // Future commands to be added here
