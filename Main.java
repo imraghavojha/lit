@@ -31,6 +31,23 @@ public class Main{
                 }
                 break;
 
+
+            case "branch": 
+                if (args.length < 2) {
+                    System.err.println("Error: No branch name specified for 'branch' command.");
+                    System.out.println("Usage: lit branch <branch_name>");
+                    return;
+                }
+                String branchName = args[1]; // Get the branch name from the arguments
+                try {
+                    CommandHandler.handleBranch(branchName); // Call the new handleBranch method
+                } catch (Exception e) {
+                    System.err.println("Error creating branch '" + branchName + "': " + e.getMessage());
+                }
+                break;
+
+
+
             // This is the new case for the commit command.
             case "commit":
                 if (args.length < 3 || !args[1].equals("-m")) {
@@ -42,6 +59,7 @@ public class Main{
                     CommandHandler.handleCommit(message);
                 }
                 break;
+
 
         // Future commands to be added here
             default:
