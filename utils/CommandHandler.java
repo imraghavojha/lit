@@ -11,8 +11,6 @@ import objects.IndexEntry;
 import objects.TreeObject;
 
 public class CommandHandler {
-    
-    // ... your handleInit and handleAdd methods remain completely unchanged ...
 
     public static void handleInit(){
             Path currentDirectory = Paths.get("");
@@ -98,7 +96,6 @@ public class CommandHandler {
         System.out.println("File '" + filePathString + "' staged successfully with SHA-1: " + blobSha1);
     }
 
-
     public static void handleBranch(String branchName) throws IOException, IllegalArgumentException {
         Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
         if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
@@ -108,15 +105,13 @@ public class CommandHandler {
 
         ReferenceManager refManager = new ReferenceManager();
         refManager.createBranch(branchName); // Call the createBranch method in ReferenceManager
+    }
 
     public static void handleCommit(String message) throws IOException {
-        Path litPath = Paths.get(".lit");
-        Path indexPath = litPath.resolve("index");
-        Path HEADPath = litPath.resolve("HEAD");
+        Path indexPath = Paths.get(".lit/index");
 
         IndexManager indexManager = new IndexManager();
-        // ** THE ONLY CHANGE IS ON THIS LINE **
-        List<IndexEntry> indexEntries = indexManager.getIndexEntries(); // Use the correct method name
+        List<IndexEntry> indexEntries = indexManager.getIndexEntries();
 
         if (indexEntries.isEmpty()) {
             System.out.println("Nothing to commit, working tree clean");
@@ -129,17 +124,9 @@ public class CommandHandler {
         rootTree.save();
         String treeSha = rootTree.getSha1Id();
 
-        String parentCommitSha = null;
-        String headContent = Files.readString(HEADPath).trim();
-        String currentBranchRef = headContent.split(" ")[1];
-        Path branchPath = litPath.resolve(currentBranchRef);
-
-        if (Files.exists(branchPath)) {
-            parentCommitSha = Files.readString(branchPath).trim();
-            if (parentCommitSha.isEmpty()) {
-                parentCommitSha = null;
-            }
-        }
+        // instead of manually reading files, we use the manager.
+        ReferenceManager refManager = new ReferenceManager();
+        String parentCommitSha = refManager.getHeadCommit();
 
         String author = "User Name <user@example.com>";
         String committer = author;
@@ -148,13 +135,13 @@ public class CommandHandler {
         newCommit.save();
         String newCommitSha = newCommit.getSha1();
 
-        Files.writeString(branchPath, newCommitSha);
+        // instead of manually writing to the branch file, we use the manager.
+        refManager.updateHead(newCommitSha);
         
         if(Files.exists(indexPath)) {
             Files.delete(indexPath);
         }
 
-        System.out.println("Committed to branch " + currentBranchRef + " (commit " + newCommitSha + ")");
-
+        System.out.println("Commit " + newCommitSha + " created.");
     }
 }
