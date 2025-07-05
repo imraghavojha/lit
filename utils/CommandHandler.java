@@ -91,4 +91,15 @@ public class CommandHandler {
 
         System.out.println("File '" + filePathString + "' staged successfully with SHA-1: " + blobSha1);
     }
+
+    public static void handleBranch(String branchName) throws IOException, IllegalArgumentException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("Error: Not a Lit repository (or any of the parent directories): .lit");
+            return; // No Git repository found
+        }
+
+        ReferenceManager refManager = new ReferenceManager();
+        refManager.createBranch(branchName); // Call the createBranch method in ReferenceManager
+    }
 }
