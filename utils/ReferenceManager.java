@@ -96,4 +96,33 @@ public class ReferenceManager {
         }
     }
 
+    public void createBranch(String branchName) throws IOException, IllegalArgumentException {
+        // Basic validation for branch name
+        if (branchName == null || branchName.trim().isEmpty() || branchName.contains(" ") || branchName.contains("/") || branchName.equals("HEAD") || branchName.equals("main")) {
+            throw new IllegalArgumentException("Invalid branch name: " + branchName + ". Branch names cannot contain spaces, slashes, or be 'HEAD' or 'main'.");
+        }
+
+        // Ensure refs/heads directory exists
+        if (!Files.exists(refsHeadsPath) || !Files.isDirectory(refsHeadsPath)) {
+            throw new IOException("Repository structure invalid. Missing refs/heads directory.");
+        }
+
+        Path newBranchFilePath = refsHeadsPath.resolve(branchName);
+
+        // Check if branch already exists
+        if (Files.exists(newBranchFilePath)) {
+            throw new IOException("Branch '" + branchName + "' already exists.");
+        }
+
+        // Get the SHA-1 of the current HEAD commit
+        String headCommitSha = getHeadCommit();
+
+        // If there are no commits yet (e.g., after init, before first commit), the new branch points to nothing initially
+        // This is how Git behaves: it creates the file but it's empty.
+        String contentToWrite = (headCommitSha != null) ? headCommitSha : "";
+
+        // Create the new branch file and write the HEAD commit SHA-1 (or empty string) to it
+        Files.writeString(newBranchFilePath, contentToWrite);
+        System.out.println("Branch '" + branchName + "' created pointing to: " + (headCommitSha != null ? headCommitSha : "(initial commit)"));
+    }
 }
