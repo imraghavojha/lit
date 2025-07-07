@@ -1,12 +1,15 @@
 package utils;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import objects.CommitObject;
-//import objects.TreeObject;   
-//import objects.TreeEntry;  
+import objects.TreeObject;   
+import objects.TreeEntry;
 
 public class ObjectLoader {
 
@@ -97,5 +100,70 @@ public class ObjectLoader {
         }
         
         return commit;
+    }
+
+    public static TreeObject loadTree(String treeSha1) throws IOException, IllegalArgumentException {
+        if (treeSha1 == null || treeSha1.length() != 40 || !treeSha1.matches("[0-9a-fA-F]{40}")) {
+            throw new IllegalArgumentException("Invalid tree SHA-1 format: " + treeSha1);
+        }
+
+        byte[] rawContent = readObject(treeSha1);
+        List<TreeEntry> entries = new ArrayList<>();
+
+        ByteArrayInputStream bis = new ByteArrayInputStream(rawContent);
+        
+        while (bis.available() > 0) {
+            // Read mode (ASCII string until space)
+            StringBuilder modeBuilder = new StringBuilder();
+            int b;
+            while ((b = bis.read()) != -1 && b != ' ') {
+                modeBuilder.append((char) b);
+            }
+            String mode = modeBuilder.toString();
+            if (mode.isEmpty()) {
+                throw new IOException("Malformed tree object: Empty mode found for tree SHA-1 " + treeSha1);
+            }
+
+            // Read name (UTF-8 string until null byte)
+            StringBuilder nameBuilder = new StringBuilder();
+            while ((b = bis.read()) != -1 && b != 0x00) { // 0x00 is the null byte delimiter
+                nameBuilder.append((char) b);
+            }
+            String name = nameBuilder.toString();
+            if (name.isEmpty()) {
+                throw new IOException("Malformed tree object: Empty name found for tree SHA-1 " + treeSha1);
+            }
+
+            // Read 20-byte SHA-1 hash
+            byte[] sha1Bytes = new byte[20];
+            int bytesRead = bis.read(sha1Bytes, 0, 20);
+            if (bytesRead != 20) {
+                throw new IOException("Malformed tree object: Incomplete SHA-1 hash for entry in tree SHA-1 " + treeSha1);
+            }
+            String objectSha1Id = bytesToHex(sha1Bytes);
+
+            // Determine type from mode
+            String type;
+            if (mode.startsWith("100")) { // e.g., 100644, 100755
+                type = "blob";
+            } else if (mode.startsWith("040")) { // e.g., 040000
+                type = "tree";
+            } else {
+                System.err.println("Warning: Unknown tree entry mode detected: " + mode + " for entry " + name + " in tree " + treeSha1);
+                type = "unknown"; // Default type
+            }
+
+            entries.add(new TreeEntry(mode, type, objectSha1Id, name));
+        }
+
+        // The TreeObject constructor will sort entries and calculate its own SHA-1.
+        TreeObject tree = new TreeObject(entries);
+
+        // Verify loaded SHA-1 matches calculated SHA-1
+        if (!tree.getSha1Id().equals(treeSha1)) {
+            System.err.println("Warning: Loaded tree SHA-1 " + treeSha1 + " does not match calculated SHA-1 " + tree.getSha1Id() + " for content.");
+        }
+
+        return tree;
     }
 }
