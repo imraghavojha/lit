@@ -92,24 +92,3 @@ public class WorkingDirManager {
         Files.createDirectories(dirPath);
     }
 }
-
-
-// ===================================================================================
-//  PLACEHOLDER - DO NOT KEEP
-//  This is a temporary class to make the code above compile.
-//  DELETE THIS CLASS and use actual ObjectLoader class once it's ready.
-// ===================================================================================
-class ObjectLoader {
-    /**
-     * (Placeholder) Simulates loading a blob's content from the .lit/objects directory.
-     * @param blobSha1 The SHA-1 hash of the blob.
-     * @return The content of the blob as a byte array.
-     */
-    public static byte[] loadBlob(String blobSha1) {
-        // In the real implementation, this will find a file named `blobSha1` in the
-        // `.lit/objects` directory, decompress it, and return its raw byte content.
-        System.out.println("--- (Placeholder) Loading blob: " + blobSha1 + " ---");
-        String fakeContent = "This is the content for blob " + blobSha1;
-        return fakeContent.getBytes();
-    }
-}
