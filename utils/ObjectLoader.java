@@ -177,4 +177,15 @@ public class ObjectLoader {
             hexString.append(hex);
         }
         return hexString.toString();
+    }
+
+    public static byte[] loadBlob(String blobSha1) throws IOException, IllegalArgumentException {
+        // Validate SHA-1 format (readObject also validates, but just to be safe)
+        if (blobSha1 == null || blobSha1.length() != 40 || !blobSha1.matches("[0-9a-fA-F]{40}")) {
+            throw new IllegalArgumentException("Invalid blob SHA-1 format: " + blobSha1);
+        }
+
+        // Blobs are just raw content, so we can simply read the object file directly
+        return readObject(blobSha1);
+    }
 }
