@@ -19,10 +19,7 @@ public class ObjectLoader {
         }
 
         // Construct the path to the object file: .lit/objects/firstTwo/restOfSha1
-        String dirName = sha1.substring(0, 2);
-        String fileName = sha1.substring(2);
-
-        Path objectFilePath = Paths.get(".lit", "objects", dirName, fileName);
+        Path objectFilePath = Paths.get(".lit", "objects", sha1);
 
         if (!Files.exists(objectFilePath)) {
             throw new IOException("Object not found: " + sha1 + " at " + objectFilePath.toAbsolutePath());
