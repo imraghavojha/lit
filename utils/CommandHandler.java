@@ -1,13 +1,17 @@
 package utils;
 
-import objects.BlobObject; 
-import objects.IndexEntry;
 import java.io.IOException;
-import java.nio.file.*;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import objects.BlobObject;
+import objects.CommitObject;
+import objects.IndexEntry;
+import objects.TreeObject;
 
 public class CommandHandler {
-    
+
     public static void handleInit(){
             Path currentDirectory = Paths.get("");
             Path litPath = currentDirectory.resolve(".lit");
@@ -40,7 +44,7 @@ public class CommandHandler {
                 // cleanup logic to be added later in case any one of the creation is success
                
             }
-}
+    }
 
     public static void handleAdd(String filePathString) throws IOException {
         Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
@@ -72,6 +76,7 @@ public class CommandHandler {
             return;
         }
 
+        blob.save();
         // Determine the file mode (permissions)
         // Currently only works for 100644 (regular file)
         String fileMode = "100644";
@@ -80,8 +85,8 @@ public class CommandHandler {
         // This is important because Git stores paths relative to the .git (or .lit) directory.
         Path relativeFilePath = currentDirectory.relativize(absoluteFilePath);
         
-        // Create an IndexEntry
-        IndexEntry newEntry = new IndexEntry(fileMode, blobSha1, relativeFilePath.toString());
+        String gitStylePath = relativeFilePath.toString().replace("\\", "/");
+        IndexEntry newEntry = new IndexEntry(fileMode, blobSha1, gitStylePath);
 
         // Use IndexManager to add the entry and save the index
         IndexManager indexManager = new IndexManager();     // reads the existing index
@@ -89,5 +94,54 @@ public class CommandHandler {
         indexManager.writeIndex();                          // write the updated index to disk
 
         System.out.println("File '" + filePathString + "' staged successfully with SHA-1: " + blobSha1);
+    }
+
+    public static void handleBranch(String branchName) throws IOException, IllegalArgumentException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("Error: Not a Lit repository (or any of the parent directories): .lit");
+            return; // No Git repository found
+        }
+
+        ReferenceManager refManager = new ReferenceManager();
+        refManager.createBranch(branchName); // Call the createBranch method in ReferenceManager
+    }
+
+    public static void handleCommit(String message) throws IOException {
+        Path indexPath = Paths.get(".lit/index");
+
+        IndexManager indexManager = new IndexManager();
+        List<IndexEntry> indexEntries = indexManager.getIndexEntries();
+
+        if (indexEntries.isEmpty()) {
+            System.out.println("Nothing to commit, working tree clean");
+            return;
+        }
+
+        TreeBuilder treeBuilder = new TreeBuilder();
+        TreeObject rootTree = treeBuilder.buildTreeFromIndex(indexEntries);
+        
+        rootTree.save();
+        String treeSha = rootTree.getSha1Id();
+
+        // instead of manually reading files, we use the manager.
+        ReferenceManager refManager = new ReferenceManager();
+        String parentCommitSha = refManager.getHeadCommit();
+
+        String author = "User Name <user@example.com>";
+        String committer = author;
+        CommitObject newCommit = new CommitObject(treeSha, parentCommitSha, author, committer, message);
+
+        newCommit.save();
+        String newCommitSha = newCommit.getSha1();
+
+        // instead of manually writing to the branch file, we use the manager.
+        refManager.updateHead(newCommitSha);
+        
+        if(Files.exists(indexPath)) {
+            Files.delete(indexPath);
+        }
+
+        System.out.println("Commit " + newCommitSha + " created.");
     }
 }

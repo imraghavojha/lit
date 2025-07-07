@@ -1,15 +1,18 @@
 package utils;
 
-import objects.BlobObject;
-import objects.TreeEntry;
-import objects.TreeObject;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
+import objects.BlobObject;
+import objects.IndexEntry;
+import objects.TreeEntry;
+import objects.TreeObject;
 
 public class TreeBuilder {
 
@@ -82,5 +85,57 @@ public class TreeBuilder {
 
         // Create and return the TreeObject for the current directory
         return new TreeObject(entries);
+    }
+
+    /**
+     * Builds a hierarchical TreeObject structure from a flat list of index entries.
+     * This is the new method required for the commit command.
+     */
+    public TreeObject buildTreeFromIndex(List<IndexEntry> entries) throws IOException {
+        Map<String, Object> root = new HashMap<>();
+
+        for (IndexEntry entry : entries) {
+            Path path = Paths.get(entry.getFilePath());
+            Map<String, Object> currentNode = root;
+
+            for (int i = 0; i < path.getNameCount() - 1; i++) {
+                String part = path.getName(i).toString();
+                currentNode = (Map<String, Object>) currentNode.computeIfAbsent(part, k -> new HashMap<String, Object>());
+            }
+            
+            currentNode.put(path.getFileName().toString(), entry);
+        }
+        
+        return createTreeFromMap(root);
+    }
+
+    /**
+     * Private helper method to recursively convert a map structure into a TreeObject.
+     */
+    private TreeObject createTreeFromMap(Map<String, Object> nodeMap) throws IOException {
+        List<TreeEntry> treeEntries = new ArrayList<>();
+
+        for (Map.Entry<String, Object> mapEntry : nodeMap.entrySet()) {
+            String name = mapEntry.getKey();
+            Object value = mapEntry.getValue();
+
+            if (value instanceof IndexEntry) {
+                IndexEntry entry = (IndexEntry) value;
+                // Your TreeEntry constructor has (mode, type, sha, name).
+                // We assume type is "blob" for any file in the index.
+                treeEntries.add(new TreeEntry(entry.getMode(), "blob", entry.getSha1(), name));
+            } else if (value instanceof Map) {
+                Map<String, Object> subMap = (Map<String, Object>) value;
+                TreeObject subTree = createTreeFromMap(subMap);
+                
+                // A sub-tree must be saved to disk to calculate its SHA-1 before being added.
+                subTree.save(); 
+                
+                // Your TreeEntry constructor has (mode, type, sha, name).
+                treeEntries.add(new TreeEntry("040000", "tree", subTree.getSha1Id(), name));
+            }
+        }
+        // Creates the TreeObject, which automatically sorts and calculates its own SHA-1.
+        return new TreeObject(treeEntries);
     }
 }
