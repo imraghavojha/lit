@@ -46,9 +46,6 @@ public class Main{
                 }
                 break;
 
-
-
-            // This is the new case for the commit command.
             case "commit":
                 if (args.length < 3 || !args[1].equals("-m")) {
                     System.err.println("Error: Use `commit -m \"<your message>\"` to commit changes.");
@@ -60,10 +57,24 @@ public class Main{
                 }
                 break;
 
-
-        // Future commands to be added here
+            case "switch": 
+                if (args.length < 2) {
+                    System.err.println("Error: No branch or commit specified for 'switch' command.");
+                    System.out.println("Usage: lit switch <branch_name_or_commit_sha>");
+                    return;
+                }
+                String targetRef = args[1]; // Get the target reference from the arguments
+                try {
+                    CommandHandler.handleSwitch(targetRef); // Call the new handleSwitch method
+                } catch (Exception e) {
+                    System.err.println("Error switching to '" + targetRef + "': " + e.getMessage());
+                }
+                break;
+                
+            // Future commands to be added here
             default:
                 System.err.println("Non-existing command!");
+                printUsage();
         }
 
     }
@@ -73,5 +84,9 @@ public class Main{
         System.out.println();
         System.out.println("The available lit commands are:");
         System.out.println("init        Create an empty Lit repository or initialize one.");
+        System.out.println("add         Add file contents to the index.");
+        System.out.println("branch      Create a new branch.");
+        System.out.println("commit      Record changes to the repository."); 
+        System.out.println("switch      Switch branches or restore working tree files."); 
     }
 }

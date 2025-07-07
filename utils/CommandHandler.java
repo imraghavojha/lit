@@ -144,4 +144,13 @@ public class CommandHandler {
 
         System.out.println("Commit " + newCommitSha + " created.");
     }
+
+    public static void handleSwitch(String targetRef) throws IOException, IllegalArgumentException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            throw new IOException("Error: Not a Lit repository (or any of the parent directories): .lit");
+        }
+
+        CheckoutManager.checkout(targetRef); // using CheckoutManager
+    }
 }
