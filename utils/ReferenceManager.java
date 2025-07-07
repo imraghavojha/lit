@@ -125,4 +125,31 @@ public class ReferenceManager {
         Files.writeString(newBranchFilePath, contentToWrite);
         System.out.println("Branch '" + branchName + "' created pointing to: " + (headCommitSha != null ? headCommitSha : "(initial commit)"));
     }
+
+    //setter for Head
+    public void setHead(String targetReference, boolean isBranchReference) throws IOException, IllegalArgumentException {
+        if (targetReference == null || targetReference.isEmpty()) {
+            throw new IllegalArgumentException("Target reference cannot be null or empty.");
+        }
+
+        String contentToWrite;
+        if (isBranchReference) {
+            // Write "ref: refs/heads/<branchName>" to HEAD
+            contentToWrite = "ref: refs/heads/" + targetReference;
+            // Also ensure the branch file actually exists if we're setting HEAD to it
+            if (!Files.exists(refsHeadsPath.resolve(targetReference))) {
+                // This might indicate trying to switch to a non-existent branch
+                throw new IOException("Cannot set HEAD to non-existent branch: " + targetReference);
+            }
+        } else {
+            // Write direct SHA-1 to HEAD (detached HEAD)
+            if (!targetReference.matches("[0-9a-fA-F]{40}")) {
+                throw new IllegalArgumentException("Invalid commit SHA-1 for detached HEAD: " + targetReference);
+            }
+            contentToWrite = targetReference;
+        }
+        
+        Files.writeString(headPath, contentToWrite);
+        System.out.println("HEAD is now at: " + targetReference);
+    }
 }

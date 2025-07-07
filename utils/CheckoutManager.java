@@ -24,6 +24,7 @@ public class CheckoutManager {
         ReferenceManager refManager = new ReferenceManager();
 
         String targetCommitSha;
+        boolean isTargetBranch = false;
         Path branchPathFromRef = litPath.resolve("refs").resolve("heads").resolve(targetRef); // Potential branch path
 
         if (Files.exists(branchPathFromRef) && Files.isRegularFile(branchPathFromRef)) {
@@ -31,6 +32,7 @@ public class CheckoutManager {
             if (targetCommitSha.isEmpty()) {
                 throw new IllegalArgumentException("Branch '" + targetRef + "' exists but points to no commit.");
             }
+            isTargetBranch = true;
             System.out.println("Switching to branch: " + targetRef);
         } else if (targetRef.matches("[0-9a-fA-F]{40}")) {
             targetCommitSha = targetRef;
@@ -77,13 +79,7 @@ public class CheckoutManager {
         // Update HEAD and Index 
         System.out.println("Updating HEAD...");
         // For now, updating HEAD based on whether targetRef was a branch or direct SHA.
-        if (Files.exists(branchPathFromRef) && Files.isRegularFile(branchPathFromRef)) {
-            refManager.updateHead(targetCommitSha); // Update the branch file content
-            Files.writeString(refManager.getHeadPath(), "ref: " + litPath.relativize(branchPathFromRef).toString().replace("\\", "/")); // Update HEAD to point to ref
-        } else {
-            // detached HEAD
-            refManager.updateHead(targetCommitSha); // Update HEAD to point directly to SHA
-        }
+        refManager.setHead(targetRef, isTargetBranch);
 
         System.out.println("Rebuilding index...");
         // Rebuild the index based on the new tree.
