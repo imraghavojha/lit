@@ -7,4 +7,6 @@ instructions.txt
 
 sample
 
+# Gradle
 .gradle
+build/
