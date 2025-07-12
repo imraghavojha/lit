@@ -1,0 +1,34 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'Main'
+}
+
+//run commands from the 'sample' directory
+run {
+    workingDir = file('sample')
+}
+
+//repositories where Gradle should look for dependencies
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    //Picocli for parsing command-line arguments
+    implementation 'info.picocli:picocli:4.7.0'
+
+    //JUnit 5 for testing (will add tests later)
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// Java version
+sourceCompatibility = 17
+targetCompatibility = 17
