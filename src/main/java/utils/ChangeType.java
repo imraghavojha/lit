@@ -1,4 +1,4 @@
-package com.lit.utils; 
+package utils; 
 
 /**
  * enum to represent the type of change for a line in a diff.

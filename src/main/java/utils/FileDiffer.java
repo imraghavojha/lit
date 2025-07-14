@@ -1,4 +1,4 @@
-package com.lit.utils;
+package utils;
 
 import com.github.difflib.DiffUtils;
 import com.github.difflib.patch.AbstractDelta;
