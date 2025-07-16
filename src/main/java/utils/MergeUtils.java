@@ -1,9 +1,15 @@
 package utils;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import objects.CommitObject;
+import objects.TreeEntry;
+import objects.TreeObject;
 
 public class MergeUtils {
 
@@ -56,5 +62,43 @@ public class MergeUtils {
         // If the second loop completes without a match, the histories are unrelated.
         System.out.println("-> No common ancestor found.");
         return null;
+    }
+
+    public static TreeDiffResult diffTrees(String baseTreeSha, String otherTreeSha) throws IOException {
+        // First, load the actual TreeObjects from their SHA-1 hashes.
+        TreeObject baseTree = ObjectLoader.loadTree(baseTreeSha);
+        TreeObject otherTree = ObjectLoader.loadTree(otherTreeSha);
+
+        // Flatten each tree into a map of {filepath -> TreeEntry}. This makes comparison easy.
+        Map<String, TreeEntry> baseFiles = flattenTreeToMap(baseTree);
+        Map<String, TreeEntry> otherFiles = flattenTreeToMap(otherTree);
+
+        // the comparison logic will be here...
+        
+        // returning an empty result for now
+        return new TreeDiffResult(); 
+    }
+
+
+    //A recursive helper method to flatten a TreeObject into a map of file paths to their TreeEntry objects.
+    private static void flattenTree(TreeObject tree, Path currentPath, Map<String, TreeEntry> fileMap) throws IOException {
+        for (TreeEntry entry : tree.getEntries()) {
+            Path newPath = currentPath.resolve(entry.getName());
+            
+            if ("blob".equals(entry.getType())) {
+                // Adding only blobs to the map
+                fileMap.put(newPath.toString().replace("\\", "/"), entry);
+            } else if ("tree".equals(entry.getType())) {
+                // If it's a subdirectory (tree), we need to recurse deeper
+                TreeObject subTree = ObjectLoader.loadTree(entry.getObjectSha1Id());
+                flattenTree(subTree, newPath, fileMap); // Recursive call
+            }
+        }
+    }
+    
+    private static Map<String, TreeEntry> flattenTreeToMap(TreeObject tree) throws IOException {
+        Map<String, TreeEntry> fileMap = new HashMap<>();
+        flattenTree(tree, Paths.get(""), fileMap);
+        return fileMap;
     }
 }
