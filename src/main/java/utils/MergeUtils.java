@@ -65,18 +65,45 @@ public class MergeUtils {
     }
 
     public static TreeDiffResult diffTrees(String baseTreeSha, String otherTreeSha) throws IOException {
+        TreeDiffResult result = new TreeDiffResult();
         // First, load the actual TreeObjects from their SHA-1 hashes.
         TreeObject baseTree = ObjectLoader.loadTree(baseTreeSha);
         TreeObject otherTree = ObjectLoader.loadTree(otherTreeSha);
 
-        // Flatten each tree into a map of {filepath -> TreeEntry}. This makes comparison easy.
+        // Flatten each tree into a map of {filepath -> TreeEntry} to make comparison easy.
         Map<String, TreeEntry> baseFiles = flattenTreeToMap(baseTree);
         Map<String, TreeEntry> otherFiles = flattenTreeToMap(otherTree);
 
-        // the comparison logic will be here...
+        for (Map.Entry<String, TreeEntry> baseEntry : baseFiles.entrySet()) {
+            String filePath = baseEntry.getKey();
+            TreeEntry baseFile = baseEntry.getValue();
+
+            // Check if the file from the base tree exists in the new tree
+            if (!otherFiles.containsKey(filePath)) {
+                // If it doesn't, its deleted
+                result.addDeletedFile(baseFile);
+            } else {
+                // if the file exists in both trees, now checking if its modified
+                TreeEntry otherFile = otherFiles.get(filePath);
+
+                // Compare the SHA-1 hashes. If they are different, the file content is modified.
+                if (!baseFile.getObjectSha1Id().equals(otherFile.getObjectSha1Id())) {
+                    result.addModifiedFile(otherFile); 
+                }
+            }
+        }
+
+        for (Map.Entry<String, TreeEntry> otherEntry : otherFiles.entrySet()) {
+            String filePath = otherEntry.getKey();
+            TreeEntry otherFile = otherEntry.getValue();
+
+            // If a file from the new tree doesnt exist in the base tree, its a new added file.
+            if (!baseFiles.containsKey(filePath)) {
+                result.addAddedFile(otherFile);
+            }
+        }
         
-        // returning an empty result for now
-        return new TreeDiffResult(); 
+        return result;
     }
 
 
