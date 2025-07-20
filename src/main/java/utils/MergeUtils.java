@@ -3,13 +3,16 @@ package utils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import objects.CommitObject;
 import objects.TreeEntry;
-import objects.TreeObject;
+import objects.TreeObject; 
 
 public class MergeUtils {
 
@@ -127,5 +130,54 @@ public class MergeUtils {
         Map<String, TreeEntry> fileMap = new HashMap<>();
         flattenTree(tree, Paths.get(""), fileMap);
         return fileMap;
+    }
+
+    // for a three-way merge between two commits
+    public static MergeResult merge(String headCommitSha, String otherCommitSha) throws IOException {
+        System.out.println("--- Starting Three-Way Merge ---");
+        System.out.println("HEAD:  " + headCommitSha);
+        System.out.println("OTHER: " + otherCommitSha);
+
+        // Find the common ancestor first (merge base)
+        String ancestorSha = findCommonAncestor(headCommitSha, otherCommitSha);
+
+        // Edge cases
+        if (ancestorSha == null) {
+            System.err.println("Merge failed: No common ancestor found between branches.");
+            // Returning a failure with a generic error message.
+            return new MergeResult(List.of("FATAL: No common history.")); 
+        }
+
+        if (ancestorSha.equals(otherCommitSha)) {
+            System.out.println("Merge not necessary: The other branch is already an ancestor of HEAD.");
+            return new MergeResult(new ArrayList<>()); // Success without any conflict
+        }
+
+        if (ancestorSha.equals(headCommitSha)) {
+            System.out.println("Fast-forward merge detected.");
+            // the command handler would just move the branch pointer.
+            // For the engine, this is a success with no conflicts.
+            return new MergeResult(new ArrayList<>()); // Success
+        }
+        
+        System.out.println("Merge Base (Ancestor): " + ancestorSha);
+
+        // Loading all the trees for all 3 commits
+        CommitObject headCommit = ObjectLoader.loadCommit(headCommitSha);
+        CommitObject otherCommit = ObjectLoader.loadCommit(otherCommitSha);
+        CommitObject ancestorCommit = ObjectLoader.loadCommit(ancestorSha);
+
+        String headTreeSha = headCommit.getTreeSha1();
+        String otherTreeSha = otherCommit.getTreeSha1();
+        String ancestorTreeSha = ancestorCommit.getTreeSha1();
+
+        // changes for each branch relative to the ancestor
+        TreeDiffResult headChanges = diffTrees(ancestorTreeSha, headTreeSha);
+        TreeDiffResult otherChanges = diffTrees(ancestorTreeSha, otherTreeSha);
+
+        // handling changes, and conflict handling to be implemented.
+        System.out.println("\n--- Analysis complete. Conflict resolution and merge application will happen next. ---");
+
+        return new MergeResult(new ArrayList<>());
     }
 }
