@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import objects.CommitObject;
+import objects.IndexEntry;
 import objects.TreeEntry;
 import objects.TreeObject; 
 
@@ -176,7 +177,11 @@ public class MergeUtils {
         TreeDiffResult headChanges = diffTrees(ancestorTreeSha, headTreeSha);
         TreeDiffResult otherChanges = diffTrees(ancestorTreeSha, otherTreeSha);
 
+        IndexManager indexManager = new IndexManager();
         List<String> conflictedFiles = new ArrayList<>();
+
+        // map of the "other" branch's files for easy access to TreeEntry objects
+        Map<String, TreeEntry> otherFilesMap = otherChanges.getAllFilesAsMap();
 
         // sets of filepaths for efficient lookup
         Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
@@ -189,12 +194,8 @@ public class MergeUtils {
 
         // all unique file paths from both sets of changes combined into a master list.
         Set<String> allChangedFiles = new HashSet<>();
-        allChangedFiles.addAll(headAdded);
-        allChangedFiles.addAll(headModified);
-        allChangedFiles.addAll(headDeleted);
-        allChangedFiles.addAll(otherAdded);
-        allChangedFiles.addAll(otherModified);
-        allChangedFiles.addAll(otherDeleted);
+        allChangedFiles.addAll(headChanges.getAllFilePaths()); // helper method to be added
+        allChangedFiles.addAll(otherChanges.getAllFilePaths());
 
         // analyzing file changes
         for (String file : allChangedFiles) {
@@ -217,10 +218,27 @@ public class MergeUtils {
                 // just recording the conflicted files for now.
                 continue;
             }
-        }
 
-           // rest of the logic to be added
-        System.out.println("\n--- Analysis complete. Conflict resolution and merge application will happen next. ---");
+            else if (isAddedInOther) {
+                System.out.println("MERGE: Adding '" + file + "'");
+                TreeEntry entry = otherFilesMap.get(file);
+                WorkingDirManager.writeBlobToWorkingDir(entry.getObjectSha1Id(), Paths.get(file));
+                indexManager.addEntry(new IndexEntry(entry.getMode(), entry.getObjectSha1Id(), file));
+            } 
+            else if (isModifiedInOther) {
+                System.out.println("MERGE: Modifying '" + file + "'");
+                TreeEntry entry = otherFilesMap.get(file);
+                WorkingDirManager.writeBlobToWorkingDir(entry.getObjectSha1Id(), Paths.get(file));
+                indexManager.addEntry(new IndexEntry(entry.getMode(), entry.getObjectSha1Id(), file));
+            }
+            else if (isDeletedInOther) {
+                System.out.println("MERGE: Deleting '" + file + "'");
+                WorkingDirManager.deleteFile(Paths.get(file));
+                indexManager.removeEntry(file); // Assumes IndexManager has this method
+            }
+        }
+        indexManager.writeIndex();
+        System.out.println("\n--- Merge processing complete! ---");
 
         return new MergeResult(conflictedFiles);
     }
