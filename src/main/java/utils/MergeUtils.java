@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import objects.CommitObject;
 import objects.TreeEntry;
@@ -175,9 +176,53 @@ public class MergeUtils {
         TreeDiffResult headChanges = diffTrees(ancestorTreeSha, headTreeSha);
         TreeDiffResult otherChanges = diffTrees(ancestorTreeSha, otherTreeSha);
 
-        // handling changes, and conflict handling to be implemented.
+        List<String> conflictedFiles = new ArrayList<>();
+
+        // sets of filepaths for efficient lookup
+        Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> headModified = headChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> headDeleted = headChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+
+        Set<String> otherAdded = otherChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> otherModified = otherChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> otherDeleted = otherChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+
+        // all unique file paths from both sets of changes combined into a master list.
+        Set<String> allChangedFiles = new HashSet<>();
+        allChangedFiles.addAll(headAdded);
+        allChangedFiles.addAll(headModified);
+        allChangedFiles.addAll(headDeleted);
+        allChangedFiles.addAll(otherAdded);
+        allChangedFiles.addAll(otherModified);
+        allChangedFiles.addAll(otherDeleted);
+
+        // analyzing file changes
+        for (String file : allChangedFiles) {
+            boolean isModifiedInHead = headModified.contains(file);
+            boolean isModifiedInOther = otherModified.contains(file);
+            boolean isDeletedInHead = headDeleted.contains(file);
+            boolean isDeletedInOther = otherDeleted.contains(file);
+            boolean isAddedInHead = headAdded.contains(file);
+            boolean isAddedInOther = otherAdded.contains(file);
+
+            // conflict if a file modified is in both branches
+            if ((isModifiedInHead && isModifiedInOther) ||
+                (isModifiedInHead && isDeletedInOther) ||
+                (isDeletedInHead && isModifiedInOther) ||
+                (isAddedInHead && isAddedInOther)) {
+                
+                System.out.println("CONFLICT: '" + file + "' requires resolution.");
+                conflictedFiles.add(file);
+                // handleConflict to be called here, needs to be implemented by RO.
+                // just recording the conflicted files for now.
+                continue;
+            }
+        }
+
+           // rest of the logic to be added
         System.out.println("\n--- Analysis complete. Conflict resolution and merge application will happen next. ---");
 
-        return new MergeResult(new ArrayList<>());
+        return new MergeResult(conflictedFiles);
     }
 }
+
