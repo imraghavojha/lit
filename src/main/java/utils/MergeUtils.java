@@ -135,7 +135,7 @@ public class MergeUtils {
     }
 
     // for a three-way merge between two commits
-    public static MergeResult merge(String headCommitSha, String otherCommitSha) throws IOException {
+    public static MergeResult merge(String headCommitSha, String otherCommitSha, String otherBranchName) throws IOException {
         System.out.println("--- Starting Three-Way Merge ---");
         System.out.println("HEAD:  " + headCommitSha);
         System.out.println("OTHER: " + otherCommitSha);
