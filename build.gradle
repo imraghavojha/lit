@@ -30,6 +30,11 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    workingDir = file('sample')
+
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
 }
 
 // Java version

@@ -1,9 +1,15 @@
 package utils;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import objects.CommitObject;
+import objects.TreeEntry;
+import objects.TreeObject;
 
 public class MergeUtils {
 
@@ -56,5 +62,70 @@ public class MergeUtils {
         // If the second loop completes without a match, the histories are unrelated.
         System.out.println("-> No common ancestor found.");
         return null;
+    }
+
+    public static TreeDiffResult diffTrees(String baseTreeSha, String otherTreeSha) throws IOException {
+        TreeDiffResult result = new TreeDiffResult();
+        // First, load the actual TreeObjects from their SHA-1 hashes.
+        TreeObject baseTree = ObjectLoader.loadTree(baseTreeSha);
+        TreeObject otherTree = ObjectLoader.loadTree(otherTreeSha);
+
+        // Flatten each tree into a map of {filepath -> TreeEntry} to make comparison easy.
+        Map<String, TreeEntry> baseFiles = flattenTreeToMap(baseTree);
+        Map<String, TreeEntry> otherFiles = flattenTreeToMap(otherTree);
+
+        for (Map.Entry<String, TreeEntry> baseEntry : baseFiles.entrySet()) {
+            String filePath = baseEntry.getKey();
+            TreeEntry baseFile = baseEntry.getValue();
+
+            // Check if the file from the base tree exists in the new tree
+            if (!otherFiles.containsKey(filePath)) {
+                // If it doesn't, its deleted
+                result.addDeletedFile(baseFile);
+            } else {
+                // if the file exists in both trees, now checking if its modified
+                TreeEntry otherFile = otherFiles.get(filePath);
+
+                // Compare the SHA-1 hashes. If they are different, the file content is modified.
+                if (!baseFile.getObjectSha1Id().equals(otherFile.getObjectSha1Id())) {
+                    result.addModifiedFile(otherFile); 
+                }
+            }
+        }
+
+        for (Map.Entry<String, TreeEntry> otherEntry : otherFiles.entrySet()) {
+            String filePath = otherEntry.getKey();
+            TreeEntry otherFile = otherEntry.getValue();
+
+            // If a file from the new tree doesnt exist in the base tree, its a new added file.
+            if (!baseFiles.containsKey(filePath)) {
+                result.addAddedFile(otherFile);
+            }
+        }
+        
+        return result;
+    }
+
+
+    //A recursive helper method to flatten a TreeObject into a map of file paths to their TreeEntry objects.
+    private static void flattenTree(TreeObject tree, Path currentPath, Map<String, TreeEntry> fileMap) throws IOException {
+        for (TreeEntry entry : tree.getEntries()) {
+            Path newPath = currentPath.resolve(entry.getName());
+            
+            if ("blob".equals(entry.getType())) {
+                // Adding only blobs to the map
+                fileMap.put(newPath.toString().replace("\\", "/"), entry);
+            } else if ("tree".equals(entry.getType())) {
+                // If it's a subdirectory (tree), we need to recurse deeper
+                TreeObject subTree = ObjectLoader.loadTree(entry.getObjectSha1Id());
+                flattenTree(subTree, newPath, fileMap); // Recursive call
+            }
+        }
+    }
+    
+    private static Map<String, TreeEntry> flattenTreeToMap(TreeObject tree) throws IOException {
+        Map<String, TreeEntry> fileMap = new HashMap<>();
+        flattenTree(tree, Paths.get(""), fileMap);
+        return fileMap;
     }
 }
