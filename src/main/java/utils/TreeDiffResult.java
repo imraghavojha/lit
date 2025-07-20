@@ -1,7 +1,12 @@
 package utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import objects.TreeEntry;
 
 public class TreeDiffResult {
@@ -55,5 +60,21 @@ public class TreeDiffResult {
                "  deleted=" + deletedFiles.size() + ",\n" +
                "  modified=" + modifiedFiles.size() + "\n" +
                '}';
+    }
+
+    public Set<String> getAllFilePaths() {
+        Set<String> paths = new HashSet<>();
+        addedFiles.forEach(e -> paths.add(e.getName()));
+        modifiedFiles.forEach(e -> paths.add(e.getName()));
+        deletedFiles.forEach(e -> paths.add(e.getName()));
+        return paths;
+    }
+
+    public Map<String, TreeEntry> getAllFilesAsMap() {
+        Map<String, TreeEntry> map = new HashMap<>();
+        addedFiles.forEach(e -> map.put(e.getName(), e));
+        modifiedFiles.forEach(e -> map.put(e.getName(), e));
+        deletedFiles.forEach(e -> map.put(e.getName(), e));
+        return map;
     }
 }

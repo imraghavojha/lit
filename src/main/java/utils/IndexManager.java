@@ -1,6 +1,5 @@
 package utils;
 
-import objects.IndexEntry; 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,6 +7,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors; 
+
+import objects.IndexEntry; 
 
 public class IndexManager {
     private List<IndexEntry> indexEntries;
@@ -75,5 +76,10 @@ public class IndexManager {
     // getter to inspect the current entries for debugging or other commands
     public List<IndexEntry> getIndexEntries() {
         return new ArrayList<>(indexEntries); // Return a copy to prevent external modification
+    }
+    
+    // remove entry helper
+    public void removeEntry(String filePathToRemove) {
+    this.indexEntries.removeIf(entry -> entry.getFilePath().equals(filePathToRemove));
     }
 }

@@ -1,17 +1,21 @@
 package utils;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
+import java.util.List;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
 import objects.CommitObject;
+import objects.IndexEntry;
 
 public class MergeUtilsTest {
     @BeforeEach
@@ -112,4 +116,51 @@ public class MergeUtilsTest {
         Files.deleteIfExists(Paths.get("to_be_deleted.txt"));
         Files.deleteIfExists(Paths.get("added.txt"));
     }
+
+    @Test
+    public void testMergeLogic() throws Exception {
+        // C1: Base commit
+        Files.writeString(Paths.get("file.txt"), "line 1\n");
+        CommandHandler.handleAdd("file.txt");
+        CommandHandler.handleCommit("C1");
+        String ancestorSha = new ReferenceManager().getHeadCommit();
+
+        // C2: Change on 'main' branch
+        Files.writeString(Paths.get("file.txt"), "line 1\nline 2 on main\n");
+        CommandHandler.handleAdd("file.txt");
+        CommandHandler.handleCommit("C2 on main");
+        String headCommitSha = new ReferenceManager().getHeadCommit();
+
+        // Go back to C1 to create a new branch
+        CommandHandler.handleSwitch(ancestorSha);
+        CommandHandler.handleBranch("feature");
+        CommandHandler.handleSwitch("feature");
+
+        // C3: Non-conflicting change on 'feature' branch
+        Files.writeString(Paths.get("new_file.txt"), "a new file from feature");
+        CommandHandler.handleAdd("new_file.txt");
+        CommandHandler.handleCommit("C3 on feature");
+        String otherCommitSha = new ReferenceManager().getHeadCommit();
+
+        // Go back to 'main' to perform the merge
+        CommandHandler.handleSwitch("main");
+
+        // Call the merge engine
+        MergeResult result = MergeUtils.merge(headCommitSha, otherCommitSha, "feature");
+
+        // Verify the merge was successful with no conflicts
+        assertTrue(result.isSuccess(), "Merge should be successful.");
+        assertTrue(result.getConflictedFiles().isEmpty(), "There should be no conflicted files.");
+
+        // Verify the working directory is in the correct state
+        assertTrue(Files.exists(Paths.get("file.txt")), "file.txt should exist.");
+        assertTrue(Files.exists(Paths.get("new_file.txt")), "The new file from the feature branch should have been added.");
+        assertEquals("a new file from feature", Files.readString(Paths.get("new_file.txt")), "Content of new_file.txt should be correct.");
+
+        // Verify the index is in the correct state
+        IndexManager indexManager = new IndexManager();
+        List<IndexEntry> entries = indexManager.getIndexEntries();
+        assertEquals(2, entries.size(), "Index should contain two files.");
+        assertTrue(entries.stream().anyMatch(e -> e.getFilePath().equals("new_file.txt")), "Index should include new_file.txt.");
+    }   
 }
