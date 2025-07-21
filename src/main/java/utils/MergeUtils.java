@@ -3,14 +3,18 @@ package utils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import objects.CommitObject;
+import objects.IndexEntry;
 import objects.TreeEntry;
-import objects.TreeObject;
+import objects.TreeObject; 
 
 public class MergeUtils {
 
@@ -138,4 +142,114 @@ public class MergeUtils {
         flattenTree(tree, Paths.get(""), fileMap);
         return fileMap;
     }
+
+    // for a three-way merge between two commits
+    public static MergeResult merge(String headCommitSha, String otherCommitSha, String otherBranchName) throws IOException {
+        System.out.println("--- Starting Three-Way Merge ---");
+        System.out.println("HEAD:  " + headCommitSha);
+        System.out.println("OTHER: " + otherCommitSha);
+
+        // Find the common ancestor first (merge base)
+        String ancestorSha = findCommonAncestor(headCommitSha, otherCommitSha);
+
+        // Edge cases
+        if (ancestorSha == null) {
+            System.err.println("Merge failed: No common ancestor found between branches.");
+            // Returning a failure with a generic error message.
+            return new MergeResult(List.of("FATAL: No common history.")); 
+        }
+
+        if (ancestorSha.equals(otherCommitSha)) {
+            System.out.println("Merge not necessary: The other branch is already an ancestor of HEAD.");
+            return new MergeResult(new ArrayList<>()); // Success without any conflict
+        }
+
+        if (ancestorSha.equals(headCommitSha)) {
+            System.out.println("Fast-forward merge detected.");
+            // the command handler would just move the branch pointer.
+            // For the engine, this is a success with no conflicts.
+            return new MergeResult(new ArrayList<>()); // Success
+        }
+        
+        System.out.println("Merge Base (Ancestor): " + ancestorSha);
+
+        // Loading all the trees for all 3 commits
+        CommitObject headCommit = ObjectLoader.loadCommit(headCommitSha);
+        CommitObject otherCommit = ObjectLoader.loadCommit(otherCommitSha);
+        CommitObject ancestorCommit = ObjectLoader.loadCommit(ancestorSha);
+
+        String headTreeSha = headCommit.getTreeSha1();
+        String otherTreeSha = otherCommit.getTreeSha1();
+        String ancestorTreeSha = ancestorCommit.getTreeSha1();
+
+        // changes for each branch relative to the ancestor
+        TreeDiffResult headChanges = diffTrees(ancestorTreeSha, headTreeSha);
+        TreeDiffResult otherChanges = diffTrees(ancestorTreeSha, otherTreeSha);
+
+        IndexManager indexManager = new IndexManager();
+        List<String> conflictedFiles = new ArrayList<>();
+
+        // map of the "other" branch's files for easy access to TreeEntry objects
+        Map<String, TreeEntry> otherFilesMap = otherChanges.getAllFilesAsMap();
+
+        // sets of filepaths for efficient lookup
+        Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> headModified = headChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> headDeleted = headChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+
+        Set<String> otherAdded = otherChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> otherModified = otherChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> otherDeleted = otherChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+
+        // all unique file paths from both sets of changes combined into a master list.
+        Set<String> allChangedFiles = new HashSet<>();
+        allChangedFiles.addAll(headChanges.getAllFilePaths()); // helper method to be added
+        allChangedFiles.addAll(otherChanges.getAllFilePaths());
+
+        // analyzing file changes
+        for (String file : allChangedFiles) {
+            boolean isModifiedInHead = headModified.contains(file);
+            boolean isModifiedInOther = otherModified.contains(file);
+            boolean isDeletedInHead = headDeleted.contains(file);
+            boolean isDeletedInOther = otherDeleted.contains(file);
+            boolean isAddedInHead = headAdded.contains(file);
+            boolean isAddedInOther = otherAdded.contains(file);
+
+            // conflict if a file modified is in both branches
+            if ((isModifiedInHead && isModifiedInOther) ||
+                (isModifiedInHead && isDeletedInOther) ||
+                (isDeletedInHead && isModifiedInOther) ||
+                (isAddedInHead && isAddedInOther)) {
+                
+                System.out.println("CONFLICT: '" + file + "' requires resolution.");
+                conflictedFiles.add(file);
+                // handleConflict to be called here, needs to be implemented by RO.
+                // just recording the conflicted files for now.
+                continue;
+            }
+
+            else if (isAddedInOther) {
+                System.out.println("MERGE: Adding '" + file + "'");
+                TreeEntry entry = otherFilesMap.get(file);
+                WorkingDirManager.writeBlobToWorkingDir(entry.getObjectSha1Id(), Paths.get(file));
+                indexManager.addEntry(new IndexEntry(entry.getMode(), entry.getObjectSha1Id(), file));
+            } 
+            else if (isModifiedInOther) {
+                System.out.println("MERGE: Modifying '" + file + "'");
+                TreeEntry entry = otherFilesMap.get(file);
+                WorkingDirManager.writeBlobToWorkingDir(entry.getObjectSha1Id(), Paths.get(file));
+                indexManager.addEntry(new IndexEntry(entry.getMode(), entry.getObjectSha1Id(), file));
+            }
+            else if (isDeletedInOther) {
+                System.out.println("MERGE: Deleting '" + file + "'");
+                WorkingDirManager.deleteFile(Paths.get(file));
+                indexManager.removeEntry(file); // Assumes IndexManager has this method
+            }
+        }
+        indexManager.writeIndex();
+        System.out.println("\n--- Merge processing complete! ---");
+
+        return new MergeResult(conflictedFiles);
+    }
 }
+
