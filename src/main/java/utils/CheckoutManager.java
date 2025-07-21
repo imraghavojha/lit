@@ -4,12 +4,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.stream.Stream; 
+import java.util.stream.Stream;
+ 
 import objects.CommitObject;
-import objects.TreeObject;
+import objects.IndexEntry;
 import objects.TreeEntry;
-import objects.IndexEntry; 
+import objects.TreeObject; 
 
 public class CheckoutManager {
 

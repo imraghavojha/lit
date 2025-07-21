@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+
 import objects.BlobObject;
 import objects.CommitObject;
 import objects.IndexEntry;
@@ -109,7 +110,6 @@ public class CommandHandler {
 
     public static void handleCommit(String message) throws IOException {
         Path indexPath = Paths.get(".lit/index");
-
         IndexManager indexManager = new IndexManager();
         List<IndexEntry> indexEntries = indexManager.getIndexEntries();
 
@@ -124,18 +124,16 @@ public class CommandHandler {
         rootTree.save();
         String treeSha = rootTree.getSha1Id();
 
-        // instead of manually reading files, we use the manager.
         ReferenceManager refManager = new ReferenceManager();
         String parentCommitSha = refManager.getHeadCommit();
 
-        String author = "User Name <user@example.com>";
-        String committer = author;
-        CommitObject newCommit = new CommitObject(treeSha, parentCommitSha, author, committer, message);
+        String authorName = "User Name";
+        String authorEmail = "user@example.com";
+        CommitObject newCommit = new CommitObject(treeSha, parentCommitSha, authorName, authorEmail, message);
 
         newCommit.save();
         String newCommitSha = newCommit.getSha1();
 
-        // instead of manually writing to the branch file, we use the manager.
         refManager.updateHead(newCommitSha);
         
         if(Files.exists(indexPath)) {
@@ -150,7 +148,30 @@ public class CommandHandler {
         if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
             throw new IOException("Error: Not a Lit repository (or any of the parent directories): .lit");
         }
+        CheckoutManager.checkout(targetRef);
+    }
 
-        CheckoutManager.checkout(targetRef); // using CheckoutManager
+    public static void handleMergeCommit(String message, String otherBranchName) throws IOException {
+        ReferenceManager refManager = new ReferenceManager();
+        String currentBranchSha = refManager.getHeadCommit();
+        String otherBranchSha = refManager.getBranchCommit(otherBranchName);
+
+        if (otherBranchSha == null) {
+            System.err.println("Error: Branch '" + otherBranchName + "' not found or has no commits.");
+            return;
+        }
+
+        List<String> parents = List.of(currentBranchSha, otherBranchSha);
+        CommitObject currentCommit = ObjectLoader.loadCommit(currentBranchSha);
+        String treeSha = currentCommit.getTreeSha1();
+
+        String authorName = "User Name";
+        String authorEmail = "user@example.com";
+        CommitObject mergeCommit = new CommitObject(treeSha, parents, authorName, authorEmail, message);
+        
+        mergeCommit.save();
+        refManager.updateHead(mergeCommit.getSha1());
+
+        System.out.println("Merged " + otherBranchName + " into current branch. New merge commit: " + mergeCommit.getSha1());
     }
 }

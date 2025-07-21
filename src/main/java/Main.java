@@ -1,6 +1,7 @@
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+
 import utils.CommandHandler;
 
 public class Main{
@@ -70,6 +71,16 @@ public class Main{
                     System.err.println("Error switching to '" + targetRef + "': " + e.getMessage());
                 }
                 break;
+
+            case "merge":
+            if (args.length == 4 && args[2].equals("-m")) {
+                String otherBranchName = args[1]; // Use a different variable name
+                String message = args[3];
+                CommandHandler.handleMergeCommit(message, otherBranchName);
+            } else {
+                System.out.println("Usage: lit merge <branch-name> -m \"<merge-message>\"");
+            }
+            break;
                 
             // Future commands to be added here
             default:
