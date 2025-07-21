@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import objects.CommitObject;
 import objects.TreeEntry;
 import objects.TreeObject;
@@ -33,7 +34,11 @@ public class MergeUtils {
             }
 
             // Move to the next parent in the chain.
-            currentSha1 = currentCommit.getParentSha1();
+            if (currentCommit.getParentSha1s() != null && !currentCommit.getParentSha1s().isEmpty()) {
+                currentSha1 = currentCommit.getParentSha1s().get(0);
+            } else {
+                currentSha1 = null; 
+            }
         }
         System.out.println("-> Found " + ancestorsOf1.size() + " ancestors.");
 
@@ -56,7 +61,12 @@ public class MergeUtils {
             }
 
             // Move to the next parent in the chain.
-            currentSha2 = currentCommit.getParentSha1();
+            if (currentCommit.getParentSha1s() != null && !currentCommit.getParentSha1s().isEmpty()) {
+                currentSha2 = currentCommit.getParentSha1s().get(0);
+            } else {
+                // This branch has no more parents, so we stop traversing
+                currentSha2 = null; 
+}
         }
 
         // If the second loop completes without a match, the histories are unrelated.
