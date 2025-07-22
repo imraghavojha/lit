@@ -223,8 +223,16 @@ public class MergeUtils {
                 
                 System.out.println("CONFLICT: '" + file + "' requires resolution.");
                 conflictedFiles.add(file);
-                // handleConflict to be called here, needs to be implemented by RO.
-                // just recording the conflicted files for now.
+                
+                // calling the ConflictHandler to write the conflicted file
+                try {
+                    ConflictHandler.handleConflict(file, headCommitSha, otherCommitSha, 
+                                                ancestorSha, otherBranchName);
+                } catch (IOException e) {
+                    System.err.println("Error handling conflict for file " + file + ": " + e.getMessage());
+                    // keep processing other files even if one fails
+                }
+                
                 continue;
             }
 
