@@ -95,14 +95,14 @@ public class MergeUtils {
             // Check if the file from the base tree exists in the new tree
             if (!otherFiles.containsKey(filePath)) {
                 // If it doesn't, its deleted
-                result.addDeletedFile(baseFile);
+                result.addDeletedFile(baseFile, filePath);
             } else {
                 // if the file exists in both trees, now checking if its modified
                 TreeEntry otherFile = otherFiles.get(filePath);
 
                 // Compare the SHA-1 hashes. If they are different, the file content is modified.
                 if (!baseFile.getObjectSha1Id().equals(otherFile.getObjectSha1Id())) {
-                    result.addModifiedFile(otherFile); 
+                    result.addModifiedFile(otherFile, filePath); 
                 }
             }
         }
@@ -113,7 +113,7 @@ public class MergeUtils {
 
             // If a file from the new tree doesnt exist in the base tree, its a new added file.
             if (!baseFiles.containsKey(filePath)) {
-                result.addAddedFile(otherFile);
+                result.addAddedFile(otherFile, filePath);
             }
         }
         
@@ -193,13 +193,13 @@ public class MergeUtils {
         Map<String, TreeEntry> otherFilesMap = otherChanges.getAllFilesAsMap();
 
         // sets of filepaths for efficient lookup
-        Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> headModified = headChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> headDeleted = headChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> headModified = headChanges.getModifiedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> headDeleted = headChanges.getDeletedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
 
-        Set<String> otherAdded = otherChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> otherModified = otherChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> otherDeleted = otherChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> otherAdded = otherChanges.getAddedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> otherModified = otherChanges.getModifiedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> otherDeleted = otherChanges.getDeletedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
 
         // all unique file paths from both sets of changes combined into a master list.
         Set<String> allChangedFiles = new HashSet<>();

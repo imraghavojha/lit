@@ -93,13 +93,13 @@ public class MergeUtilsTest {
 
         // verify for all different functionalities
         assertEquals(1, result.getAddedFiles().size(), "Should be 1 added file.");
-        assertEquals("added.txt", result.getAddedFiles().get(0).getName(), "The added file should be 'added.txt'.");
+        assertEquals("added.txt", result.getAddedFiles().get(0).getEntry().getName(), "The added file should be 'added.txt'.");
 
         assertEquals(1, result.getDeletedFiles().size(), "Should be 1 deleted file.");
-        assertEquals("to_be_deleted.txt", result.getDeletedFiles().get(0).getName(), "The deleted file should be 'to_be_deleted.txt'.");
+        assertEquals("to_be_deleted.txt", result.getDeletedFiles().get(0).getEntry().getName(), "The deleted file should be 'to_be_deleted.txt'.");
 
         assertEquals(1, result.getModifiedFiles().size(), "Should be 1 modified file.");
-        assertEquals("original.txt", result.getModifiedFiles().get(0).getName(), "The modified file should be 'original.txt'.");
+        assertEquals("original.txt", result.getModifiedFiles().get(0).getEntry().getName(), "The modified file should be 'original.txt'.");
     }
 
     private void cleanup() throws IOException {
