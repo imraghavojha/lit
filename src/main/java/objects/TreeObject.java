@@ -3,14 +3,13 @@ package objects;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
 import java.util.Formatter;
 import java.util.List;
+
+import utils.Content;
 
 public class TreeObject {
     private String treeSha1Id;
@@ -107,24 +106,12 @@ public class TreeObject {
             System.err.println("Tree SHA-1 is null or empty. Cannot save tree.");
             return;
         }
-        Path objectsDir = Paths.get(".lit", "objects");
-        Path treePath = objectsDir.resolve(sha1);
-
-        try{
-            if(!Files.exists(objectsDir)){
-                Files.createDirectories(objectsDir);
-            }
-            if (!Files.exists(treePath)) {
-                byte[] contentBytes = serializeContentToBytes();
-
-                if (contentBytes == null) {
-                    System.err.println("Failed to serialize tree content.");
-                    return;
-                }
-                Files.write(treePath, contentBytes);
-                System.out.println("Tree saved: " + treePath.toString());
+        try {
+            byte[] contentBytes = serializeContentToBytes();
+            if (contentBytes != null) {
+                Content.saveObject(sha1, contentBytes);
             } else {
-                System.out.println("Tree already exists: " + treePath.toString());
+                System.err.println("Failed to serialize tree content.");
             }
         } catch (IOException e) {
             System.err.println("Failed to save tree: " + e.getMessage());

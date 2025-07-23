@@ -1,9 +1,6 @@
 package objects;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -53,30 +50,9 @@ public class BlobObject {
     } 
 
     public void save(){
-        String sha1 = getSha1();
-        
-        if (sha1 == null || sha1.isEmpty()) {
-            System.err.println("Blob SHA-1 is null or empty. Cannot save blob.");
-            return;
-        }
-        
-        Path objectsDir = Paths.get(".lit", "objects");
-        Path blobPath = objectsDir.resolve(sha1);
-
-        try{
-
-            if(!Files.exists(objectsDir)) {
-                Files.createDirectories(objectsDir);
-            }
-
-            if (!Files.exists(blobPath)) {
-                Files.write(blobPath, content);
-                System.out.println("Blob saved: " + blobPath.toString());
-
-             } else {
-                System.out.println("Blob already exists: " + blobPath.toString());
-             }
-        } catch (IOException e){
+        try {
+            Content.saveObject(getSha1(), content);
+        } catch (IOException e) {
             System.err.println("Failed to save blob: " + e.getMessage());
         }
     }

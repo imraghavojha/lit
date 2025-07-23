@@ -38,7 +38,11 @@ public class MergeUtils {
             }
 
             // Move to the next parent in the chain.
-            currentSha1 = currentCommit.getParentSha1();
+            if (currentCommit.getParentSha1s() != null && !currentCommit.getParentSha1s().isEmpty()) {
+                currentSha1 = currentCommit.getParentSha1s().get(0);
+            } else {
+                currentSha1 = null; 
+            }
         }
         System.out.println("-> Found " + ancestorsOf1.size() + " ancestors.");
 
@@ -61,7 +65,12 @@ public class MergeUtils {
             }
 
             // Move to the next parent in the chain.
-            currentSha2 = currentCommit.getParentSha1();
+            if (currentCommit.getParentSha1s() != null && !currentCommit.getParentSha1s().isEmpty()) {
+                currentSha2 = currentCommit.getParentSha1s().get(0);
+            } else {
+                // This branch has no more parents, so we stop traversing
+                currentSha2 = null; 
+}
         }
 
         // If the second loop completes without a match, the histories are unrelated.
@@ -86,14 +95,14 @@ public class MergeUtils {
             // Check if the file from the base tree exists in the new tree
             if (!otherFiles.containsKey(filePath)) {
                 // If it doesn't, its deleted
-                result.addDeletedFile(baseFile);
+                result.addDeletedFile(baseFile, filePath);
             } else {
                 // if the file exists in both trees, now checking if its modified
                 TreeEntry otherFile = otherFiles.get(filePath);
 
                 // Compare the SHA-1 hashes. If they are different, the file content is modified.
                 if (!baseFile.getObjectSha1Id().equals(otherFile.getObjectSha1Id())) {
-                    result.addModifiedFile(otherFile); 
+                    result.addModifiedFile(otherFile, filePath); 
                 }
             }
         }
@@ -104,7 +113,7 @@ public class MergeUtils {
 
             // If a file from the new tree doesnt exist in the base tree, its a new added file.
             if (!baseFiles.containsKey(filePath)) {
-                result.addAddedFile(otherFile);
+                result.addAddedFile(otherFile, filePath);
             }
         }
         
@@ -184,13 +193,13 @@ public class MergeUtils {
         Map<String, TreeEntry> otherFilesMap = otherChanges.getAllFilesAsMap();
 
         // sets of filepaths for efficient lookup
-        Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> headModified = headChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> headDeleted = headChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> headAdded = headChanges.getAddedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> headModified = headChanges.getModifiedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> headDeleted = headChanges.getDeletedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
 
-        Set<String> otherAdded = otherChanges.getAddedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> otherModified = otherChanges.getModifiedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
-        Set<String> otherDeleted = otherChanges.getDeletedFiles().stream().map(TreeEntry::getName).collect(Collectors.toSet());
+        Set<String> otherAdded = otherChanges.getAddedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> otherModified = otherChanges.getModifiedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
+        Set<String> otherDeleted = otherChanges.getDeletedFiles().stream().map(TreeDiffResult.TreeEntryWithPath::getFullPath).collect(Collectors.toSet());
 
         // all unique file paths from both sets of changes combined into a master list.
         Set<String> allChangedFiles = new HashSet<>();
@@ -214,8 +223,16 @@ public class MergeUtils {
                 
                 System.out.println("CONFLICT: '" + file + "' requires resolution.");
                 conflictedFiles.add(file);
-                // handleConflict to be called here, needs to be implemented by RO.
-                // just recording the conflicted files for now.
+                
+                // calling the ConflictHandler to write the conflicted file
+                try {
+                    ConflictHandler.handleConflict(file, headCommitSha, otherCommitSha, 
+                                                ancestorSha, otherBranchName);
+                } catch (IOException e) {
+                    System.err.println("Error handling conflict for file " + file + ": " + e.getMessage());
+                    // keep processing other files even if one fails
+                }
+                
                 continue;
             }
 
