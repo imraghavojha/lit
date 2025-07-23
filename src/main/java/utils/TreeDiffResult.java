@@ -11,9 +11,27 @@ import objects.TreeEntry;
 
 public class TreeDiffResult {
 
-    private final List<TreeEntry> addedFiles;
-    private final List<TreeEntry> deletedFiles;
-    private final List<TreeEntry> modifiedFiles;
+    public static class TreeEntryWithPath {
+    private final TreeEntry entry;
+    private final String fullPath;
+    
+    public TreeEntryWithPath(TreeEntry entry, String fullPath) {
+        this.entry = entry;
+        this.fullPath = fullPath;
+    }
+    
+    public TreeEntry getEntry() {
+        return entry;
+    }
+    
+    public String getFullPath() {
+        return fullPath;
+    }
+}
+
+    private final List<TreeEntryWithPath> addedFiles;
+    private final List<TreeEntryWithPath> deletedFiles;
+    private final List<TreeEntryWithPath> modifiedFiles;
 
     public TreeDiffResult() {
         this.addedFiles = new ArrayList<>();
@@ -22,29 +40,29 @@ public class TreeDiffResult {
     }
 
     // Getters for the lists
-    public List<TreeEntry> getAddedFiles() {
+    public List<TreeEntryWithPath> getAddedFiles() {
         return addedFiles;
     }
 
-    public List<TreeEntry> getDeletedFiles() {
+    public List<TreeEntryWithPath> getDeletedFiles() {
         return deletedFiles;
     }
 
-    public List<TreeEntry> getModifiedFiles() {
+    public List<TreeEntryWithPath> getModifiedFiles() {
         return modifiedFiles;
     }
 
     // Methods to add entries to the appropriate list
-    public void addAddedFile(TreeEntry entry) {
-        this.addedFiles.add(entry);
+    public void addAddedFile(TreeEntry entry, String fullPath) {
+        this.addedFiles.add(new TreeEntryWithPath(entry, fullPath));
     }
 
-    public void addDeletedFile(TreeEntry entry) {
-        this.deletedFiles.add(entry);
+    public void addDeletedFile(TreeEntry entry, String fullPath) {
+        this.deletedFiles.add(new TreeEntryWithPath(entry, fullPath));
     }
 
-    public void addModifiedFile(TreeEntry entry) {
-        this.modifiedFiles.add(entry);
+    public void addModifiedFile(TreeEntry entry, String fullPath) {
+        this.modifiedFiles.add(new TreeEntryWithPath(entry, fullPath));
     }
 
     // A helper method to check if there are any changes
@@ -64,17 +82,17 @@ public class TreeDiffResult {
 
     public Set<String> getAllFilePaths() {
         Set<String> paths = new HashSet<>();
-        addedFiles.forEach(e -> paths.add(e.getName()));
-        modifiedFiles.forEach(e -> paths.add(e.getName()));
-        deletedFiles.forEach(e -> paths.add(e.getName()));
+        addedFiles.forEach(e -> paths.add(e.getFullPath()));
+        modifiedFiles.forEach(e -> paths.add(e.getFullPath()));
+        deletedFiles.forEach(e -> paths.add(e.getFullPath()));
         return paths;
     }
 
     public Map<String, TreeEntry> getAllFilesAsMap() {
         Map<String, TreeEntry> map = new HashMap<>();
-        addedFiles.forEach(e -> map.put(e.getName(), e));
-        modifiedFiles.forEach(e -> map.put(e.getName(), e));
-        deletedFiles.forEach(e -> map.put(e.getName(), e));
+        addedFiles.forEach(e -> map.put(e.getFullPath(), e.getEntry()));
+        modifiedFiles.forEach(e -> map.put(e.getFullPath(), e.getEntry()));
+        deletedFiles.forEach(e -> map.put(e.getFullPath(), e.getEntry()));
         return map;
     }
 }

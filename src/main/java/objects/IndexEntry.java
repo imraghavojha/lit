@@ -9,8 +9,8 @@ public class IndexEntry {
         if (mode == null || mode.isEmpty()) {
             throw new IllegalArgumentException("Mode cannot be null or empty.");
         }
-        if (sha1 == null || sha1.length() != 40) { // SHA-1s are 40 hex characters
-            throw new IllegalArgumentException("SHA-1 must be a 40-character hexadecimal string.");
+        if (sha1 == null || (!"0".equals(sha1) && sha1.length() != 40)) { //  "0" for deleted files
+            throw new IllegalArgumentException("SHA-1 must be a 40-character hexadecimal string or '0' for deleted files.");
         }
         if (filePath == null || filePath.isEmpty()) {
             throw new IllegalArgumentException("File path cannot be null or empty.");
@@ -31,6 +31,10 @@ public class IndexEntry {
 
     public String getFilePath() {
         return filePath;
+    }
+
+    public boolean isDeleted() {
+        return "0".equals(sha1);
     }
 
     @Override

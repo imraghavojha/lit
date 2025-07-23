@@ -81,6 +81,19 @@ public class Main{
                 System.out.println("Usage: lit merge <branch-name> -m \"<merge-message>\"");
             }
             break;
+            case "rm":
+                if (args.length < 2) {
+                    System.err.println("Error: No file specified for 'rm' command.");
+                    System.out.println("Usage: lit rm <file>");
+                    return;
+                }
+                String rmFilePath = args[1];
+                try {
+                    CommandHandler.handleRm(rmFilePath);
+                } catch (Exception e) {
+                    System.err.println("Error removing file '" + rmFilePath + "': " + e.getMessage());
+                }
+                break;
                 
             // Future commands to be added here
             default:
@@ -96,6 +109,7 @@ public class Main{
         System.out.println("The available lit commands are:");
         System.out.println("init        Create an empty Lit repository or initialize one.");
         System.out.println("add         Add file contents to the index.");
+        System.out.println("rm          Remove files from the working tree and from the index.");
         System.out.println("branch      Create a new branch.");
         System.out.println("commit      Record changes to the repository."); 
         System.out.println("switch      Switch branches or restore working tree files."); 

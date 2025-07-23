@@ -97,6 +97,51 @@ public class CommandHandler {
         System.out.println("File '" + filePathString + "' staged successfully with SHA-1: " + blobSha1);
     }
 
+    public static void handleRm(String filePathString) throws IOException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("Error: Not a Lit repository (or any of the parent directories): .lit");
+            return;
+        }
+
+        Path absoluteFilePath = Paths.get(filePathString).toAbsolutePath();
+        Path currentDirectory = Paths.get("").toAbsolutePath();
+
+        // Ensure the file is within the repository's working directory
+        if (!absoluteFilePath.startsWith(currentDirectory)) {
+            System.err.println("Error: File '" + filePathString + "' is outside the current working directory.");
+            return;
+        }
+
+        // Get the file path relative to the repository root
+        Path relativeFilePath = currentDirectory.relativize(absoluteFilePath);
+        String gitStylePath = relativeFilePath.toString().replace("\\", "/");
+
+        // Load the index
+        IndexManager indexManager = new IndexManager();
+        
+        // Check if file is in the index
+        boolean fileInIndex = indexManager.getIndexEntries().stream()
+                .anyMatch(entry -> entry.getFilePath().equals(gitStylePath));
+        
+        if (!fileInIndex) {
+            System.err.println("Error: pathspec '" + filePathString + "' did not match any files in index.");
+            return;
+        }
+
+        // marks deleted in index with mode "0" and sha1 "0"
+        IndexEntry deletionEntry = new IndexEntry("0", "0", gitStylePath);
+        indexManager.addEntry(deletionEntry);
+        indexManager.writeIndex();
+
+        // Delete the file from working directory if it exists
+        if (Files.exists(absoluteFilePath)) {
+            Files.delete(absoluteFilePath);
+        }
+
+        System.out.println("rm '" + filePathString + "'");
+    }
+
     public static void handleBranch(String branchName) throws IOException, IllegalArgumentException {
         Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
         if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
@@ -136,8 +181,19 @@ public class CommandHandler {
 
         refManager.updateHead(newCommitSha);
         
-        if(Files.exists(indexPath)) {
-            Files.delete(indexPath);
+        // Clean up deletion markers from index after successful commit
+        List<IndexEntry> remainingEntries = indexEntries.stream()
+                .filter(entry -> !entry.isDeleted())
+                .collect(java.util.stream.Collectors.toList());
+        
+        if (remainingEntries.isEmpty()) {
+            if(Files.exists(indexPath)) {
+                Files.delete(indexPath);
+            }
+        } else {
+            indexManager.getIndexEntries().clear();
+            remainingEntries.forEach(indexManager::addEntry);
+            indexManager.writeIndex();
         }
 
         System.out.println("Commit " + newCommitSha + " created.");
