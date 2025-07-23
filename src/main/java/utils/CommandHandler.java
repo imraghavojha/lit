@@ -158,12 +158,7 @@ public class CommandHandler {
         IndexManager indexManager = new IndexManager();
         List<IndexEntry> indexEntries = indexManager.getIndexEntries();
 
-        // filter out deleted entries for the emptiness check
-        List<IndexEntry> nonDeletedEntries = indexEntries.stream()
-                .filter(entry -> !entry.isDeleted())
-                .collect(java.util.stream.Collectors.toList());
-
-        if (nonDeletedEntries.isEmpty()) {
+        if (indexEntries.isEmpty()) {
             System.out.println("Nothing to commit, working tree clean");
             return;
         }
@@ -186,7 +181,7 @@ public class CommandHandler {
 
         refManager.updateHead(newCommitSha);
         
-        // cleans up deletion markers from index after successful commit
+        // Clean up deletion markers from index after successful commit
         List<IndexEntry> remainingEntries = indexEntries.stream()
                 .filter(entry -> !entry.isDeleted())
                 .collect(java.util.stream.Collectors.toList());
