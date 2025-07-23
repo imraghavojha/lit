@@ -46,7 +46,6 @@ public class ConflictHandlerTest {
         // Create feature branch from base and modify differently
         CommandHandler.handleSwitch(baseCommitSha);
         CommandHandler.handleBranch("feature");
-        CommandHandler.handleSwitch("feature");
         Files.writeString(Paths.get("conflict.txt"), "Modified by feature\n");
         CommandHandler.handleAdd("conflict.txt");
         CommandHandler.handleCommit("Feature modification");
@@ -55,6 +54,10 @@ public class ConflictHandlerTest {
         // Switch back to main and merge
         CommandHandler.handleSwitch("main");
         MergeResult result = MergeUtils.merge(mainCommitSha, featureCommitSha, "feature");
+
+        // DEBUG: Print merge result
+        System.out.println("DEBUG: Merge success: " + result.isSuccess());
+        System.out.println("DEBUG: Conflicted files: " + result.getConflictedFiles());
         
         // Verify conflict detected
         assertFalse(result.isSuccess(), "Merge should have conflicts");
@@ -252,6 +255,183 @@ public class ConflictHandlerTest {
         assertTrue(Files.exists(Paths.get("feature-only.txt")));
         assertEquals("Feature only file\n", Files.readString(Paths.get("feature-only.txt")));
     }
+
+    @Test
+    @DisplayName("Test fast-forward merge (no conflicts expected)")
+    public void testFastForwardMerge() throws Exception {
+        // Create base commit
+        Files.writeString(Paths.get("file.txt"), "Original content\n");
+        CommandHandler.handleAdd("file.txt");
+        CommandHandler.handleCommit("Base commit");
+        String baseCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Create feature branch and make changes
+        CommandHandler.handleBranch("feature-ff");
+        CommandHandler.handleSwitch("feature-ff");
+        Files.writeString(Paths.get("file.txt"), "Updated content\n");
+        CommandHandler.handleAdd("file.txt");
+        CommandHandler.handleCommit("Feature update");
+        Files.writeString(Paths.get("new-file.txt"), "New file content\n");
+        CommandHandler.handleAdd("new-file.txt");
+        CommandHandler.handleCommit("Add new file");
+        String featureCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Switch back to main (still at base commit) and merge
+        CommandHandler.handleSwitch("main");
+        MergeResult result = MergeUtils.merge(baseCommitSha, featureCommitSha, "feature-ff");
+        
+        // Fast-forward should succeed with no conflicts
+        assertTrue(result.isSuccess(), "Fast-forward merge should succeed");
+        assertEquals(0, result.getConflictedFiles().size(), "Should have no conflicts");
+    }
+    
+    @Test
+    @DisplayName("Test merge with empty file conflict")
+    public void testEmptyFileConflict() throws Exception {
+        // Create base commit with empty file
+        Files.writeString(Paths.get("empty.txt"), "");
+        CommandHandler.handleAdd("empty.txt");
+        CommandHandler.handleCommit("Base with empty file");
+        String baseCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Main branch adds content to empty file
+        Files.writeString(Paths.get("empty.txt"), "Main added content\n");
+        CommandHandler.handleAdd("empty.txt");
+        CommandHandler.handleCommit("Main adds content");
+        String mainCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Feature branch adds different content to empty file
+        CommandHandler.handleSwitch(baseCommitSha);
+        CommandHandler.handleBranch("feature-empty");
+        CommandHandler.handleSwitch("feature-empty");
+        Files.writeString(Paths.get("empty.txt"), "Feature added different content\n");
+        CommandHandler.handleAdd("empty.txt");
+        CommandHandler.handleCommit("Feature adds content");
+        String featureCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Switch back to main and merge
+        CommandHandler.handleSwitch("main");
+        MergeResult result = MergeUtils.merge(mainCommitSha, featureCommitSha, "feature-empty");
+        
+        // Should have conflict
+        assertFalse(result.isSuccess(), "Merge should have conflicts");
+        assertEquals(1, result.getConflictedFiles().size());
+        assertEquals("empty.txt", result.getConflictedFiles().get(0));
+        
+        // Verify conflict markers
+        String fileContent = Files.readString(Paths.get("empty.txt"));
+        assertTrue(fileContent.contains("<<<<<<< HEAD"));
+        assertTrue(fileContent.contains("Main added content"));
+        assertTrue(fileContent.contains("Feature added different content"));
+    }
+    
+    @Test
+    @DisplayName("Test merge with file deleted in both branches (no conflict)")
+    public void testBothBranchesDeleteSameFile() throws Exception {
+        // Create base commit
+        Files.writeString(Paths.get("to-delete.txt"), "File to be deleted\n");
+        CommandHandler.handleAdd("to-delete.txt");
+        CommandHandler.handleCommit("Base commit");
+        String baseCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Main branch deletes the file
+        CommandHandler.handleRm("to-delete.txt");
+        CommandHandler.handleCommit("Main deletes file");
+        String mainCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Feature branch also deletes the same file
+        CommandHandler.handleSwitch(baseCommitSha);
+        CommandHandler.handleBranch("feature-delete-same");
+        CommandHandler.handleSwitch("feature-delete-same");
+        CommandHandler.handleRm("to-delete.txt");
+        CommandHandler.handleCommit("Feature deletes file");
+        String featureCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Switch back to main and merge
+        CommandHandler.handleSwitch("main");
+        MergeResult result = MergeUtils.merge(mainCommitSha, featureCommitSha, "feature-delete-same");
+        
+        // Should succeed - both branches did the same thing
+        assertTrue(result.isSuccess(), "Merge should succeed when both delete same file");
+        assertEquals(0, result.getConflictedFiles().size());
+        assertFalse(Files.exists(Paths.get("to-delete.txt")), "File should remain deleted");
+    }
+    
+    @Test
+    @DisplayName("Test merge with directory structure conflicts")
+    public void testDirectoryStructureConflict() throws Exception {
+        // Create base commit with file in subdirectory
+        Files.createDirectories(Paths.get("src/main"));
+        Files.writeString(Paths.get("src/main/App.java"), "public class App {}\n");
+        CommandHandler.handleAdd("src/main/App.java");
+        CommandHandler.handleCommit("Base commit");
+        String baseCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Main branch modifies the file
+        Files.writeString(Paths.get("src/main/App.java"), "public class App { // main changes }\n");
+        CommandHandler.handleAdd("src/main/App.java");
+        CommandHandler.handleCommit("Main modifies App.java");
+        String mainCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Feature branch modifies the same file differently
+        CommandHandler.handleSwitch(baseCommitSha);
+        CommandHandler.handleBranch("feature-dir");
+        CommandHandler.handleSwitch("feature-dir");
+        Files.writeString(Paths.get("src/main/App.java"), "public class App { // feature changes }\n");
+        CommandHandler.handleAdd("src/main/App.java");
+        CommandHandler.handleCommit("Feature modifies App.java");
+        String featureCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Switch back to main and merge
+        CommandHandler.handleSwitch("main");
+        MergeResult result = MergeUtils.merge(mainCommitSha, featureCommitSha, "feature-dir");
+        
+        // Should have conflict
+        assertFalse(result.isSuccess(), "Merge should have conflicts");
+        assertEquals(1, result.getConflictedFiles().size());
+        assertEquals("src/main/App.java", result.getConflictedFiles().get(0));
+        
+        // Verify file still exists in correct location with conflict markers
+        assertTrue(Files.exists(Paths.get("src/main/App.java")));
+        String fileContent = Files.readString(Paths.get("src/main/App.java"));
+        assertTrue(fileContent.contains("<<<<<<< HEAD"));
+    }
+    
+    @Test
+    @DisplayName("Test merge where one branch adds file to deleted directory")
+    public void testAddFileToDeletedDirectory() throws Exception {
+        // Create base commit with directory and file
+        Files.createDirectories(Paths.get("config"));
+        Files.writeString(Paths.get("config/settings.txt"), "key=value\n");
+        CommandHandler.handleAdd("config/settings.txt");
+        CommandHandler.handleCommit("Base commit");
+        String baseCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Main branch deletes the entire directory content
+        CommandHandler.handleRm("config/settings.txt");
+        CommandHandler.handleCommit("Main removes config");
+        String mainCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Feature branch adds another file to the same directory
+        CommandHandler.handleSwitch(baseCommitSha);
+        CommandHandler.handleBranch("feature-add-config");
+        CommandHandler.handleSwitch("feature-add-config");
+        Files.writeString(Paths.get("config/database.txt"), "db=mysql\n");
+        CommandHandler.handleAdd("config/database.txt");
+        CommandHandler.handleCommit("Feature adds database config");
+        String featureCommitSha = new ReferenceManager().getHeadCommit();
+        
+        // Switch back to main and merge
+        CommandHandler.handleSwitch("main");
+        MergeResult result = MergeUtils.merge(mainCommitSha, featureCommitSha, "feature-add-config");
+        
+        // Should succeed - no direct conflict
+        assertTrue(result.isSuccess(), "Merge should succeed");
+        // The directory should exist with only the new file
+        assertTrue(Files.exists(Paths.get("config/database.txt")), "New file should exist");
+        assertFalse(Files.exists(Paths.get("config/settings.txt")), "Deleted file should not exist");
+    }
+    
     
     private void cleanup() throws IOException {
         Path litDir = Paths.get(".lit");
@@ -271,5 +451,28 @@ public class ConflictHandlerTest {
         Files.deleteIfExists(Paths.get("file2.txt"));
         Files.deleteIfExists(Paths.get("clean.txt"));
         Files.deleteIfExists(Paths.get("feature-only.txt"));
+        Files.deleteIfExists(Paths.get("file.txt"));
+        Files.deleteIfExists(Paths.get("empty.txt"));
+        Files.deleteIfExists(Paths.get("to-delete.txt"));
+        
+        // Clean up directories
+        if (Files.exists(Paths.get("src/main/App.java"))) {
+            Files.delete(Paths.get("src/main/App.java"));
+        }
+        if (Files.exists(Paths.get("src/main"))) {
+            Files.delete(Paths.get("src/main"));
+        }
+        if (Files.exists(Paths.get("src"))) {
+            Files.delete(Paths.get("src"));
+        }
+        if (Files.exists(Paths.get("config/settings.txt"))) {
+            Files.delete(Paths.get("config/settings.txt"));
+        }
+        if (Files.exists(Paths.get("config/database.txt"))) {
+            Files.delete(Paths.get("config/database.txt"));
+        }
+        if (Files.exists(Paths.get("config"))) {
+            Files.delete(Paths.get("config"));
+        }
     }
 }
