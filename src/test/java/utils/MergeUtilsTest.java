@@ -79,7 +79,7 @@ public class MergeUtilsTest {
 
         // New Commit
         Files.writeString(Paths.get("original.txt"), "modified"); // Modified
-        Files.delete(Paths.get("to_be_deleted.txt")); // Deleted
+        CommandHandler.handleRm("to_be_deleted.txt"); // using handleRm instead of Files.delete
         Files.writeString(Paths.get("added.txt"), "new file"); // Added
         CommandHandler.handleAdd("original.txt");
         CommandHandler.handleAdd("added.txt");
@@ -115,6 +115,8 @@ public class MergeUtilsTest {
         Files.deleteIfExists(Paths.get("original.txt"));
         Files.deleteIfExists(Paths.get("to_be_deleted.txt"));
         Files.deleteIfExists(Paths.get("added.txt"));
+        Files.deleteIfExists(Paths.get("file.txt"));
+        Files.deleteIfExists(Paths.get("new_file.txt"));
     }
 
     @Test

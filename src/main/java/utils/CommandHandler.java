@@ -129,8 +129,9 @@ public class CommandHandler {
             return;
         }
 
-        // Remove from index
-        indexManager.removeEntry(gitStylePath);
+        // marks deleted in index with mode "0" and sha1 "0"
+        IndexEntry deletionEntry = new IndexEntry("0", "0", gitStylePath);
+        indexManager.addEntry(deletionEntry);
         indexManager.writeIndex();
 
         // Delete the file from working directory if it exists
@@ -157,7 +158,12 @@ public class CommandHandler {
         IndexManager indexManager = new IndexManager();
         List<IndexEntry> indexEntries = indexManager.getIndexEntries();
 
-        if (indexEntries.isEmpty()) {
+        // filter out deleted entries for the emptiness check
+        List<IndexEntry> nonDeletedEntries = indexEntries.stream()
+                .filter(entry -> !entry.isDeleted())
+                .collect(java.util.stream.Collectors.toList());
+
+        if (nonDeletedEntries.isEmpty()) {
             System.out.println("Nothing to commit, working tree clean");
             return;
         }
@@ -180,8 +186,19 @@ public class CommandHandler {
 
         refManager.updateHead(newCommitSha);
         
-        if(Files.exists(indexPath)) {
-            Files.delete(indexPath);
+        // cleans up deletion markers from index after successful commit
+        List<IndexEntry> remainingEntries = indexEntries.stream()
+                .filter(entry -> !entry.isDeleted())
+                .collect(java.util.stream.Collectors.toList());
+        
+        if (remainingEntries.isEmpty()) {
+            if(Files.exists(indexPath)) {
+                Files.delete(indexPath);
+            }
+        } else {
+            indexManager.getIndexEntries().clear();
+            remainingEntries.forEach(indexManager::addEntry);
+            indexManager.writeIndex();
         }
 
         System.out.println("Commit " + newCommitSha + " created.");
