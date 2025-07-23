@@ -4,6 +4,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ReferenceManager {
     private Path litPath;           // Path to .lit directory
@@ -151,5 +155,29 @@ public class ReferenceManager {
         
         Files.writeString(headPath, contentToWrite);
         System.out.println("HEAD is now at: " + targetReference);
+    }
+
+     //gets commit SHA-1 for branch name. basically takes name of branch and return SHA-1 of commit or null
+    public String getBranchCommit(String branchName) throws IOException {
+        Path branchPath = this.refsHeadsPath.resolve(branchName);
+        if (Files.exists(branchPath)) {
+            return Files.readString(branchPath).trim();
+        }
+        return null;
+    }
+
+     //returns list of all branch names where each string is a branch name
+    public List<String> getAllBranches() {
+        if (!Files.exists(this.refsHeadsPath)) {
+            return Collections.emptyList();
+        }
+        try (Stream<Path> stream = Files.list(this.refsHeadsPath)) {
+            return stream
+                    .map(path -> path.getFileName().toString())
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            System.err.println("Error listing branches: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 }

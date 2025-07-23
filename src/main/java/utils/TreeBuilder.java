@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+
 import objects.BlobObject;
 import objects.IndexEntry;
 import objects.TreeEntry;
@@ -95,6 +96,11 @@ public class TreeBuilder {
         Map<String, Object> root = new HashMap<>();
 
         for (IndexEntry entry : entries) {
+            // skip deleted entries when building the tree
+            if (entry.isDeleted()) {
+                continue;
+            }
+            
             Path path = Paths.get(entry.getFilePath());
             Map<String, Object> currentNode = root;
 

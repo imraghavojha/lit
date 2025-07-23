@@ -5,13 +5,16 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.List;
+
+import utils.Content;
 
 public class CommitObject {
 
     private final String treeSha1;
-    private final String parentSha1; //null for the initial commit
+    private final List<String> parentSha1s; 
     private final String author;
-    private final long authorTimestamp;
+    private long authorTimestamp; // made this non-final
     private final String commitMessage;
     private String commitSha1;
 
@@ -25,15 +28,17 @@ public class CommitObject {
      * @param commitMessage The commit message.
      */
     public CommitObject(String treeSha1, String parentSha1, String authorName, String authorEmail, String commitMessage) {
-        this.treeSha1 = treeSha1;
-        this.parentSha1 = parentSha1;
-        this.commitMessage = commitMessage;
-        
-        this.authorTimestamp = Instant.now().getEpochSecond();
+    this(treeSha1, (parentSha1 == null || parentSha1.isEmpty()) ? java.util.Collections.emptyList() : java.util.Collections.singletonList(parentSha1), authorName, authorEmail, commitMessage);
+    }
 
+    // new constructor for multiple parents
+    public CommitObject(String treeSha1, List<String> parentSha1s, String authorName, String authorEmail, String commitMessage) {
+        this.treeSha1 = treeSha1;
+        this.parentSha1s = parentSha1s;
+        this.commitMessage = commitMessage;
+        this.authorTimestamp = Instant.now().getEpochSecond();
         String timezone = ZoneId.systemDefault().getRules().getOffset(Instant.now()).toString();
         this.author = String.format("%s <%s> %d %s", authorName, authorEmail, authorTimestamp, timezone);
-        
         this.commitSha1 = calculateCommitSha1();
     }
 
@@ -45,8 +50,13 @@ public class CommitObject {
         StringBuilder content = new StringBuilder();
         content.append("tree ").append(this.treeSha1).append("\n");
 
-        if (this.parentSha1 != null && !this.parentSha1.isEmpty()) {
-            content.append("parent ").append(this.parentSha1).append("\n");
+        // handle multiple parents
+        if (this.parentSha1s != null) {
+            for (String parent : this.parentSha1s) {
+                if (parent != null && !parent.isEmpty()) {
+                    content.append("parent ").append(parent).append("\n");
+                }
+            }
         }
 
         content.append("author ").append(this.author).append("\n");
@@ -58,6 +68,10 @@ public class CommitObject {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void setAuthorTimestamp(long timestamp) {
+        this.authorTimestamp = timestamp;
     }
 
     /**
@@ -99,8 +113,8 @@ public class CommitObject {
         return treeSha1;
     }
 
-    public String getParentSha1() {
-        return parentSha1;
+     public List<String> getParentSha1s() {
+        return parentSha1s;
     }
     
     public String getCommitMessage() {
@@ -113,21 +127,8 @@ public class CommitObject {
             System.err.println("Commit SHA-1 is null or empty. Cannot save commit.");
             return;
         }
-
-        java.nio.file.Path objectsDir = java.nio.file.Paths.get(".lit", "objects");
-        java.nio.file.Path commitPath = objectsDir.resolve(sha1);
-
         try {
-            if (!java.nio.file.Files.exists(objectsDir)) {
-                java.nio.file.Files.createDirectories(objectsDir);
-            }
-            if (!java.nio.file.Files.exists(commitPath)) {
-                byte[] contentBytes = serializeContentToBytes();
-                java.nio.file.Files.write(commitPath, contentBytes);
-                System.out.println("Commit saved: " + commitPath.toString());
-            } else {
-                System.out.println("Commit already exists: " + commitPath.toString());
-            }
+            Content.saveObject(sha1, serializeContentToBytes());
         } catch (java.io.IOException e) {
             System.err.println("Failed to save commit: " + e.getMessage());
         }

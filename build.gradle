@@ -23,10 +23,18 @@ dependencies {
     //JUnit 5 for testing (will add tests later)
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    //Library designed for comparing text and creating "diffs" and "patches," 
+    implementation 'io.github.java-diff-utils:java-diff-utils:4.12'
 }
 
 test {
     useJUnitPlatform()
+    workingDir = file('sample')
+
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
 }
 
 // Java version
