@@ -89,11 +89,7 @@ public class ConflictHandlerTest {
         CommandHandler.handleSwitch(baseCommitSha);
         CommandHandler.handleBranch("feature-delete");
         CommandHandler.handleSwitch("feature-delete");
-        Files.delete(Paths.get("delete-conflict.txt"));
-        // Need to remove from index when file is deleted
-        IndexManager indexManager = new IndexManager();
-        indexManager.removeEntry("delete-conflict.txt");
-        indexManager.writeIndex();
+        CommandHandler.handleRm("delete-conflict.txt");
         CommandHandler.handleCommit("Feature deletion");
         String featureCommitSha = new ReferenceManager().getHeadCommit();
         
@@ -104,6 +100,7 @@ public class ConflictHandlerTest {
         // Verify conflict detected
         assertFalse(result.isSuccess(), "Merge should have conflicts");
         assertEquals(1, result.getConflictedFiles().size());
+        assertEquals("delete-conflict.txt", result.getConflictedFiles().get(0));
         
         // File should exist with conflict markers
         assertTrue(Files.exists(Paths.get("delete-conflict.txt")), "File should exist");

@@ -97,6 +97,50 @@ public class CommandHandler {
         System.out.println("File '" + filePathString + "' staged successfully with SHA-1: " + blobSha1);
     }
 
+    public static void handleRm(String filePathString) throws IOException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("Error: Not a Lit repository (or any of the parent directories): .lit");
+            return;
+        }
+
+        Path absoluteFilePath = Paths.get(filePathString).toAbsolutePath();
+        Path currentDirectory = Paths.get("").toAbsolutePath();
+
+        // Ensure the file is within the repository's working directory
+        if (!absoluteFilePath.startsWith(currentDirectory)) {
+            System.err.println("Error: File '" + filePathString + "' is outside the current working directory.");
+            return;
+        }
+
+        // Get the file path relative to the repository root
+        Path relativeFilePath = currentDirectory.relativize(absoluteFilePath);
+        String gitStylePath = relativeFilePath.toString().replace("\\", "/");
+
+        // Load the index
+        IndexManager indexManager = new IndexManager();
+        
+        // Check if file is in the index
+        boolean fileInIndex = indexManager.getIndexEntries().stream()
+                .anyMatch(entry -> entry.getFilePath().equals(gitStylePath));
+        
+        if (!fileInIndex) {
+            System.err.println("Error: pathspec '" + filePathString + "' did not match any files in index.");
+            return;
+        }
+
+        // Remove from index
+        indexManager.removeEntry(gitStylePath);
+        indexManager.writeIndex();
+
+        // Delete the file from working directory if it exists
+        if (Files.exists(absoluteFilePath)) {
+            Files.delete(absoluteFilePath);
+        }
+
+        System.out.println("rm '" + filePathString + "'");
+    }
+
     public static void handleBranch(String branchName) throws IOException, IllegalArgumentException {
         Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
         if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
