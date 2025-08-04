@@ -1,4 +1,5 @@
 import commands.AddCommand;
+import commands.CommitCommand;
 import commands.InitCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command; 
@@ -11,7 +12,8 @@ import picocli.CommandLine.Command;
     // commands
     subcommands = {
         InitCommand.class,
-        AddCommand.class
+        AddCommand.class,
+        CommitCommand.class
         // more to be added here
     }
 )
