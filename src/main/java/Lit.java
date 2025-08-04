@@ -1,3 +1,4 @@
+import commands.AddCommand;
 import commands.InitCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command; 
@@ -9,7 +10,8 @@ import picocli.CommandLine.Command;
     description = "A custom version control system built in Java.",
     // commands
     subcommands = {
-        InitCommand.class
+        InitCommand.class,
+        AddCommand.class
         // more to be added here
     }
 )
