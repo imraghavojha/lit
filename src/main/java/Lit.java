@@ -1,6 +1,9 @@
 import commands.AddCommand;
+import commands.BranchCommand;
 import commands.CommitCommand;
 import commands.InitCommand;
+import commands.RmCommand;
+import commands.SwitchCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command; 
 
@@ -13,12 +16,13 @@ import picocli.CommandLine.Command;
     subcommands = {
         InitCommand.class,
         AddCommand.class,
-        CommitCommand.class
-        // more to be added here
+        CommitCommand.class,
+        BranchCommand.class,
+        SwitchCommand.class,
+        RmCommand.class
     }
 )
 public class Lit implements Runnable {
-    // ... rest of the class is unchanged ...
     @Override
     public void run() {
         new CommandLine(this).usage(System.out);
