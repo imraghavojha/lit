@@ -5,6 +5,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.Date;
 import java.util.List;
 
 import utils.Content;
@@ -12,11 +14,12 @@ import utils.Content;
 public class CommitObject {
 
     private final String treeSha1;
-    private final List<String> parentSha1s; 
-    private final String author;
-    private long authorTimestamp; // made this non-final
+    private final List<String> parentSha1s;
+    private final String authorName;
+    private final String authorEmail;
+    private final long authorTimestamp;
     private final String commitMessage;
-    private String commitSha1;
+    private final String commitSha1;
 
     /**
      * Constructs a new CommitObject.
@@ -28,17 +31,17 @@ public class CommitObject {
      * @param commitMessage The commit message.
      */
     public CommitObject(String treeSha1, String parentSha1, String authorName, String authorEmail, String commitMessage) {
-    this(treeSha1, (parentSha1 == null || parentSha1.isEmpty()) ? java.util.Collections.emptyList() : java.util.Collections.singletonList(parentSha1), authorName, authorEmail, commitMessage);
+        this(treeSha1, (parentSha1 == null || parentSha1.isEmpty()) ? java.util.Collections.emptyList() : java.util.Collections.singletonList(parentSha1), authorName, authorEmail, commitMessage);
     }
 
     // new constructor for multiple parents
     public CommitObject(String treeSha1, List<String> parentSha1s, String authorName, String authorEmail, String commitMessage) {
         this.treeSha1 = treeSha1;
         this.parentSha1s = parentSha1s;
+        this.authorName = authorName;
+        this.authorEmail = authorEmail;
         this.commitMessage = commitMessage;
         this.authorTimestamp = Instant.now().getEpochSecond();
-        String timezone = ZoneId.systemDefault().getRules().getOffset(Instant.now()).toString();
-        this.author = String.format("%s <%s> %d %s", authorName, authorEmail, authorTimestamp, timezone);
         this.commitSha1 = calculateCommitSha1();
     }
 
@@ -59,7 +62,11 @@ public class CommitObject {
             }
         }
 
-        content.append("author ").append(this.author).append("\n");
+        // Use a consistent format for author
+        String timezone = ZoneId.systemDefault().getRules().getOffset(Instant.now()).toString();
+        content.append("author ").append(this.authorName).append(" <").append(this.authorEmail).append("> ").append(this.authorTimestamp).append(" ").append(timezone).append("\n");
+        content.append("committer ").append(this.authorName).append(" <").append(this.authorEmail).append("> ").append(this.authorTimestamp).append(" ").append(timezone).append("\n");
+        
         content.append("\n"); // Blank line before commit message
         content.append(this.commitMessage);
 
@@ -71,7 +78,7 @@ public class CommitObject {
     }
 
     public void setAuthorTimestamp(long timestamp) {
-        this.authorTimestamp = timestamp;
+        // This method is no longer needed but kept for backward compatibility with ObjectLoader.
     }
 
     /**
@@ -119,6 +126,15 @@ public class CommitObject {
     
     public String getCommitMessage() {
         return commitMessage;
+    }
+    
+    public String getAuthor() {
+        String timezone = ZoneId.ofOffset("UTC", ZoneOffset.ofTotalSeconds((int) (new Date().getTime() / 1000))).toString();
+        return String.format("%s <%s> %d %s", this.authorName, this.authorEmail, this.authorTimestamp, timezone);
+    }
+
+    public long getAuthorTimestamp() {
+        return authorTimestamp;
     }
 
     public void save() {

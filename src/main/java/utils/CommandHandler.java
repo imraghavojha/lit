@@ -387,6 +387,8 @@ public class CommandHandler {
             }
 
             System.out.println("Commit " + commit.getSha1());
+            System.out.println("Author: " + commit.getAuthor()); 
+            System.out.println("Date: " + commit.getAuthorTimestamp());
             System.out.println("\n    " + commit.getCommitMessage() + "\n");
 
             // Move to the first parent to continue the traversal
