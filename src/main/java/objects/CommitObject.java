@@ -5,8 +5,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.util.Date;
 import java.util.List;
 
 import utils.Content;
@@ -129,7 +127,8 @@ public class CommitObject {
     }
     
     public String getAuthor() {
-        String timezone = ZoneId.ofOffset("UTC", ZoneOffset.ofTotalSeconds((int) (new Date().getTime() / 1000))).toString();
+        // The author string is fully constructed in the constructor, so we just need to return it
+        String timezone = ZoneId.systemDefault().getRules().getOffset(Instant.now()).toString();
         return String.format("%s <%s> %d %s", this.authorName, this.authorEmail, this.authorTimestamp, timezone);
     }
 
