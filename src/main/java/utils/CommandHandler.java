@@ -363,4 +363,38 @@ public class CommandHandler {
         }
         return filePaths;
     }
+
+    public static void handleLog() throws IOException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("fatal: not a lit repository (or any of the parent directories)");
+            return;
+        }
+
+        ReferenceManager refManager = new ReferenceManager();
+        String currentCommitSha = refManager.getHeadCommit();
+
+        if (currentCommitSha == null) {
+            System.out.println("No commits yet.");
+            return;
+        }
+
+        while (currentCommitSha != null) {
+            CommitObject commit = ObjectLoader.loadCommit(currentCommitSha);
+            if (commit == null) {
+                System.err.println("Error: Could not load commit object " + currentCommitSha);
+                break;
+            }
+
+            System.out.println("Commit " + commit.getSha1());
+            System.out.println("\n    " + commit.getCommitMessage() + "\n");
+
+            // Move to the first parent to continue the traversal
+            if (commit.getParentSha1s() != null && !commit.getParentSha1s().isEmpty()) {
+                currentCommitSha = commit.getParentSha1s().get(0);
+            } else {
+                currentCommitSha = null; // No more parents, end the traversal
+            }
+        }
+    }
 }
