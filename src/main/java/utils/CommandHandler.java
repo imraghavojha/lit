@@ -5,10 +5,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import objects.BlobObject;
 import objects.CommitObject;
 import objects.IndexEntry;
+import objects.TreeEntry;
 import objects.TreeObject;
 
 public class CommandHandler {
@@ -229,5 +234,133 @@ public class CommandHandler {
         refManager.updateHead(mergeCommit.getSha1());
 
         System.out.println("Merged " + otherBranchName + " into current branch. New merge commit: " + mergeCommit.getSha1());
+    }
+
+    public static void handleStatus() throws IOException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("fatal: not a lit repository (or any of the parent directories)");
+            return;
+        }
+
+        ReferenceManager refManager = new ReferenceManager();
+        IndexManager indexManager = new IndexManager();
+
+        String headCommitSha = refManager.getHeadCommit();
+        Map<String, String> headTreeEntries = null;
+
+        if (headCommitSha != null) {
+            CommitObject headCommit = ObjectLoader.loadCommit(headCommitSha);
+            if (headCommit != null) {
+                TreeObject headTree = ObjectLoader.loadTree(headCommit.getTreeSha1());
+                headTreeEntries = headTree.getEntries().stream()
+                    .collect(Collectors.toMap(
+                        TreeEntry::getName,
+                        TreeEntry::getObjectSha1Id
+                    ));
+            }
+        }
+
+        // map of current index entries for easy lookup
+        Map<String, IndexEntry> indexMap = indexManager.getIndexEntries().stream()
+            .collect(Collectors.toMap(
+                IndexEntry::getFilePath, 
+                entry -> entry
+            ));
+
+        // all the files in the working directory
+        Path currentDirectory = Paths.get("").toAbsolutePath();
+        Set<String> workingDirFiles = listFilesRecursive(currentDirectory);
+        
+        boolean isClean = true;
+        // Check for unmerged paths (conflicts)
+        if (ConflictHandler.hasUnresolvedConflicts()) {
+            System.out.println("Unmerged paths:");
+            System.out.println("  (fix conflicts and run \"lit commit\")");
+            // conflicthandler would list the files here
+            isClean = false;
+        }
+
+        // Changes to be committed (Index vs. HEAD)
+        System.out.println("\nChanges to be committed:");
+        // Find changes in the index that are not in the HEAD commit
+        Set<String> stagedFiles = indexMap.keySet();
+        for (String filePath : stagedFiles) {
+            IndexEntry entry = indexMap.get(filePath);
+
+            // Staged for deletion
+            if (entry.isDeleted()) {
+                if (headTreeEntries != null && headTreeEntries.containsKey(filePath)) {
+                    System.out.println("  deleted:    " + filePath);
+                    isClean = false;
+                }
+                continue;
+            }
+
+            // Staged new file
+            if (headTreeEntries == null || !headTreeEntries.containsKey(filePath)) {
+                System.out.println("  new file:   " + filePath);
+                isClean = false;
+            } 
+            // Staged modification
+            else if (!headTreeEntries.get(filePath).equals(entry.getSha1())) {
+                System.out.println("  modified:   " + filePath);
+                isClean = false;
+            }
+        }
+
+        // Changes not staged for commit (Working Dir vs. Index)
+        System.out.println("\nChanges not staged for commit:");
+        
+        // Find changes in the working directory that are not yet staged
+        for (String filePath : workingDirFiles) {
+            Path absolutePath = Paths.get(filePath);
+            
+            // Skip the .lit directory itself
+            if (absolutePath.startsWith(litPath)) {
+                continue;
+            }
+            try {
+                String workingFileSha = new BlobObject(filePath).getSha1();
+                IndexEntry indexEntry = indexMap.get(filePath);
+
+                // File is in the index but modified in the working directory
+                if (indexEntry != null && !workingFileSha.equals(indexEntry.getSha1())) {
+                    System.out.println("  modified:   " + filePath);
+                    isClean = false;
+                }
+            } catch (Exception e) {
+                // Ignoring any issues with calculating SHA for now
+            }
+        }
+
+        // Untracked files
+        System.out.println("\nUntracked files:");
+        
+        // Find files in the working directory that are not in the index
+        for (String filePath : workingDirFiles) {
+            if (!indexMap.containsKey(filePath)) {
+                System.out.println("  " + filePath);
+                isClean = false;
+            }
+        }
+
+        if (isClean) {
+            System.out.println("\nworking tree clean");
+        }
+    }
+
+    // Helper to get a set of all file paths in the current directory and subdirectories.
+    private static Set<String> listFilesRecursive(Path rootDir) throws IOException {
+        Set<String> filePaths = new java.util.HashSet<>();
+        try (Stream<Path> walk = Files.walk(rootDir)) {
+            walk.filter(Files::isRegularFile)
+                .filter(p -> !p.startsWith(rootDir.resolve(".lit")))
+                .forEach(path -> {
+                    String relativePath = rootDir.relativize(path).toString().replace("\\", "/");
+                    filePaths.add(relativePath);
+                });
+        }
+        return filePaths;
     }
 }
