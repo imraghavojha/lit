@@ -61,7 +61,7 @@ public class CommitObject {
 
         content.append("author ").append(this.author).append("\n");
         content.append("\n"); // Blank line before commit message
-        content.append(this.commitMessage).append("\n");
+        content.append(this.commitMessage);
 
         try {
             return content.toString().getBytes("UTF-8");

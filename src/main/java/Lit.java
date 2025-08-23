@@ -2,6 +2,7 @@ import commands.AddCommand;
 import commands.BranchCommand;
 import commands.CommitCommand;
 import commands.InitCommand;
+import commands.MergeCommand;
 import commands.RmCommand;
 import commands.SwitchCommand;
 import picocli.CommandLine;
@@ -19,7 +20,8 @@ import picocli.CommandLine.Command;
         CommitCommand.class,
         BranchCommand.class,
         SwitchCommand.class,
-        RmCommand.class
+        RmCommand.class,
+        MergeCommand.class
     }
 )
 public class Lit implements Runnable {
