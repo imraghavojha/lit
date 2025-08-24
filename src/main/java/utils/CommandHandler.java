@@ -399,4 +399,125 @@ public class CommandHandler {
             }
         }
     }
+
+    // Handles the 'diff' command with no arguments: compares the index and the working directory
+    public static void handleDiffIndexAndWorkingDir() throws IOException {
+        System.out.println("Comparing index with working directory...");
+        IndexManager indexManager = new IndexManager();
+        List<IndexEntry> indexEntries = indexManager.getIndexEntries();
+        FileDiffer fileDiffer = new FileDiffer();
+
+        boolean hasDiff = false;
+        for (IndexEntry entry : indexEntries) {
+            Path filePath = Paths.get(entry.getFilePath());
+            if (Files.exists(filePath)) {
+                String indexContent = new String(ObjectLoader.loadBlob(entry.getSha1()));
+                String workingContent = new String(Files.readAllBytes(filePath));
+
+                DiffResult diffResult = fileDiffer.calculateDiff(indexContent, workingContent);
+                if (diffResult.hasChanges()) {
+                    System.out.println("--- a/" + entry.getFilePath());
+                    System.out.println("+++ b/" + entry.getFilePath());
+                    diffResult.getDiffLines().forEach(line -> System.out.println(line.type == ChangeType.ADDED ? "+" + line.text : "-" + line.text));
+                    System.out.println();
+                    hasDiff = true;
+                }
+            }
+        }
+        if (!hasDiff) {
+            System.out.println("No changes found.");
+        }
+    }
+
+    //Handles 'diff' with one argument: compares a commit and the working directory
+    public static void handleDiffCommitAndWorkingDir(String commitOrBranch) throws IOException {
+        System.out.println("Comparing " + commitOrBranch + " with working directory...");
+        ReferenceManager refManager = new ReferenceManager();
+        String commitSha = refManager.getBranchCommit(commitOrBranch);
+        if (commitSha == null) {
+            // Assume it's a direct SHA
+            commitSha = commitOrBranch;
+        }
+
+        CommitObject commit = ObjectLoader.loadCommit(commitSha);
+        if (commit == null) {
+            System.err.println("Error: Commit '" + commitOrBranch + "' not found.");
+            return;
+        }
+
+        TreeObject tree = ObjectLoader.loadTree(commit.getTreeSha1());
+        FileDiffer fileDiffer = new FileDiffer();
+
+        boolean hasDiff = false;
+        for (TreeEntry entry : tree.getEntries()) {
+            if ("blob".equals(entry.getType())) {
+                Path filePath = Paths.get(entry.getName());
+                if (Files.exists(filePath)) {
+                    String commitContent = new String(ObjectLoader.loadBlob(entry.getObjectSha1Id()));
+                    String workingContent = new String(Files.readAllBytes(filePath));
+
+                    DiffResult diffResult = fileDiffer.calculateDiff(commitContent, workingContent);
+                    if (diffResult.hasChanges()) {
+                        System.out.println("--- a/" + entry.getName());
+                        System.out.println("+++ b/" + entry.getName());
+                        diffResult.getDiffLines().forEach(line -> System.out.println(line.type == ChangeType.ADDED ? "+" + line.text : "-" + line.text));
+                        System.out.println();
+                        hasDiff = true;
+                    }
+                }
+            }
+        }
+        if (!hasDiff) {
+            System.out.println("No changes found.");
+        }
+    }
+
+    // Handles 'diff' with two arguments: compares two commits
+    public static void handleDiffCommits(String commit1, String commit2) throws IOException {
+        System.out.println("Comparing commits " + commit1 + " and " + commit2 + "...");
+        ReferenceManager refManager = new ReferenceManager();
+        
+        String sha1 = refManager.getBranchCommit(commit1);
+        if (sha1 == null) {
+            sha1 = commit1;
+        }
+        
+        String sha2 = refManager.getBranchCommit(commit2);
+        if (sha2 == null) {
+            sha2 = commit2;
+        }
+
+        CommitObject commitObj1 = ObjectLoader.loadCommit(sha1);
+        CommitObject commitObj2 = ObjectLoader.loadCommit(sha2);
+
+        if (commitObj1 == null || commitObj2 == null) {
+            System.err.println("Error: Could not find one or both commits.");
+            return;
+        }
+
+        TreeObject tree1 = ObjectLoader.loadTree(commitObj1.getTreeSha1());
+        TreeObject tree2 = ObjectLoader.loadTree(commitObj2.getTreeSha1());
+        FileDiffer fileDiffer = new FileDiffer();
+
+        TreeDiffResult diffResult = MergeUtils.diffTrees(tree1.getSha1Id(), tree2.getSha1Id());
+        
+        boolean hasDiff = false;
+        for (TreeDiffResult.TreeEntryWithPath entry : diffResult.getModifiedFiles()) {
+            String filePath = entry.getFullPath();
+            String content1 = new String(ObjectLoader.loadBlob(entry.getEntry().getObjectSha1Id()));
+            String content2 = new String(ObjectLoader.loadBlob(ObjectLoader.loadTree(tree2.getSha1Id()).getEntries().stream().filter(e -> e.getName().equals(entry.getEntry().getName())).findFirst().get().getObjectSha1Id()));
+            
+            DiffResult fileDiff = fileDiffer.calculateDiff(content1, content2);
+            if (fileDiff.hasChanges()) {
+                System.out.println("--- a/" + filePath);
+                System.out.println("+++ b/" + filePath);
+                fileDiff.getDiffLines().forEach(line -> System.out.println(line.type == ChangeType.ADDED ? "+" + line.text : "-" + line.text));
+                System.out.println();
+                hasDiff = true;
+            }
+        }
+        if (!hasDiff) {
+            System.out.println("No changes found.");
+        }
+    }
 }
