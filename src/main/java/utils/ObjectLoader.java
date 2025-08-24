@@ -87,10 +87,6 @@ public class ObjectLoader {
         CommitObject commit = new CommitObject(treeSha1, parentSha1s, authorName, authorEmail, commitMessage);
         commit.setAuthorTimestamp(timestamp);
 
-        if (!commit.getSha1().equals(commitSha1)) {
-            System.err.println("Warning: Loaded commit SHA-1 " + commitSha1 + " does not match calculated SHA-1 " + commit.getSha1());
-        }
-
         return commit;
     }
 
@@ -136,10 +132,6 @@ public class ObjectLoader {
         }
 
         TreeObject tree = new TreeObject(entries);
-
-        if (!tree.getSha1Id().equals(treeSha1)) {
-            System.err.println("Warning: Loaded tree SHA-1 " + treeSha1 + " does not match calculated SHA-1 " + tree.getSha1Id());
-        }
 
         return tree;
     }

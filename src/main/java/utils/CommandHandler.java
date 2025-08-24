@@ -5,10 +5,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import objects.BlobObject;
 import objects.CommitObject;
 import objects.IndexEntry;
+import objects.TreeEntry;
 import objects.TreeObject;
 
 public class CommandHandler {
@@ -229,5 +234,290 @@ public class CommandHandler {
         refManager.updateHead(mergeCommit.getSha1());
 
         System.out.println("Merged " + otherBranchName + " into current branch. New merge commit: " + mergeCommit.getSha1());
+    }
+
+    public static void handleStatus() throws IOException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("fatal: not a lit repository (or any of the parent directories)");
+            return;
+        }
+
+        ReferenceManager refManager = new ReferenceManager();
+        IndexManager indexManager = new IndexManager();
+
+        String headCommitSha = refManager.getHeadCommit();
+        Map<String, String> headTreeEntries = null;
+
+        if (headCommitSha != null) {
+            CommitObject headCommit = ObjectLoader.loadCommit(headCommitSha);
+            if (headCommit != null) {
+                TreeObject headTree = ObjectLoader.loadTree(headCommit.getTreeSha1());
+                headTreeEntries = headTree.getEntries().stream()
+                    .collect(Collectors.toMap(
+                        TreeEntry::getName,
+                        TreeEntry::getObjectSha1Id
+                    ));
+            }
+        }
+
+        // map of current index entries for easy lookup
+        Map<String, IndexEntry> indexMap = indexManager.getIndexEntries().stream()
+            .collect(Collectors.toMap(
+                IndexEntry::getFilePath, 
+                entry -> entry
+            ));
+
+        // all the files in the working directory
+        Path currentDirectory = Paths.get("").toAbsolutePath();
+        Set<String> workingDirFiles = listFilesRecursive(currentDirectory);
+        
+        boolean isClean = true;
+        // Check for unmerged paths (conflicts)
+        if (ConflictHandler.hasUnresolvedConflicts()) {
+            System.out.println("Unmerged paths:");
+            System.out.println("  (fix conflicts and run \"lit commit\")");
+            // conflicthandler would list the files here
+            isClean = false;
+        }
+
+        // Changes to be committed (Index vs. HEAD)
+        System.out.println("\nChanges to be committed:");
+        // Find changes in the index that are not in the HEAD commit
+        Set<String> stagedFiles = indexMap.keySet();
+        for (String filePath : stagedFiles) {
+            IndexEntry entry = indexMap.get(filePath);
+
+            // Staged for deletion
+            if (entry.isDeleted()) {
+                if (headTreeEntries != null && headTreeEntries.containsKey(filePath)) {
+                    System.out.println("  deleted:    " + filePath);
+                    isClean = false;
+                }
+                continue;
+            }
+
+            // Staged new file
+            if (headTreeEntries == null || !headTreeEntries.containsKey(filePath)) {
+                System.out.println("  new file:   " + filePath);
+                isClean = false;
+            } 
+            // Staged modification
+            else if (!headTreeEntries.get(filePath).equals(entry.getSha1())) {
+                System.out.println("  modified:   " + filePath);
+                isClean = false;
+            }
+        }
+
+        // Changes not staged for commit (Working Dir vs. Index)
+        System.out.println("\nChanges not staged for commit:");
+        
+        // Find changes in the working directory that are not yet staged
+        for (String filePath : workingDirFiles) {
+            Path absolutePath = Paths.get(filePath);
+            
+            // Skip the .lit directory itself
+            if (absolutePath.startsWith(litPath)) {
+                continue;
+            }
+            try {
+                String workingFileSha = new BlobObject(filePath).getSha1();
+                IndexEntry indexEntry = indexMap.get(filePath);
+
+                // File is in the index but modified in the working directory
+                if (indexEntry != null && !workingFileSha.equals(indexEntry.getSha1())) {
+                    System.out.println("  modified:   " + filePath);
+                    isClean = false;
+                }
+            } catch (Exception e) {
+                // Ignoring any issues with calculating SHA for now
+            }
+        }
+
+        // Untracked files
+        System.out.println("\nUntracked files:");
+        
+        // Find files in the working directory that are not in the index
+        for (String filePath : workingDirFiles) {
+            if (!indexMap.containsKey(filePath)) {
+                System.out.println("  " + filePath);
+                isClean = false;
+            }
+        }
+
+        if (isClean) {
+            System.out.println("\nworking tree clean");
+        }
+    }
+
+    // Helper to get a set of all file paths in the current directory and subdirectories.
+    private static Set<String> listFilesRecursive(Path rootDir) throws IOException {
+        Set<String> filePaths = new java.util.HashSet<>();
+        try (Stream<Path> walk = Files.walk(rootDir)) {
+            walk.filter(Files::isRegularFile)
+                .filter(p -> !p.startsWith(rootDir.resolve(".lit")))
+                .forEach(path -> {
+                    String relativePath = rootDir.relativize(path).toString().replace("\\", "/");
+                    filePaths.add(relativePath);
+                });
+        }
+        return filePaths;
+    }
+
+    public static void handleLog() throws IOException {
+        Path litPath = Paths.get("").toAbsolutePath().resolve(".lit");
+        if (!Files.exists(litPath) || !Files.isDirectory(litPath)) {
+            System.err.println("fatal: not a lit repository (or any of the parent directories)");
+            return;
+        }
+
+        ReferenceManager refManager = new ReferenceManager();
+        String currentCommitSha = refManager.getHeadCommit();
+
+        if (currentCommitSha == null) {
+            System.out.println("No commits yet.");
+            return;
+        }
+
+        while (currentCommitSha != null) {
+            CommitObject commit = ObjectLoader.loadCommit(currentCommitSha);
+            if (commit == null) {
+                System.err.println("Error: Could not load commit object " + currentCommitSha);
+                break;
+            }
+
+            System.out.println("Commit " + commit.getSha1());
+            System.out.println("Author: " + commit.getAuthor()); 
+            System.out.println("Date: " + commit.getAuthorTimestamp());
+            System.out.println("\n    " + commit.getCommitMessage() + "\n");
+
+            // Move to the first parent to continue the traversal
+            if (commit.getParentSha1s() != null && !commit.getParentSha1s().isEmpty()) {
+                currentCommitSha = commit.getParentSha1s().get(0);
+            } else {
+                currentCommitSha = null; // No more parents, end the traversal
+            }
+        }
+    }
+
+    // Handles the 'diff' command with no arguments: compares the index and the working directory
+    public static void handleDiffIndexAndWorkingDir() throws IOException {
+        System.out.println("Comparing index with working directory...");
+        IndexManager indexManager = new IndexManager();
+        List<IndexEntry> indexEntries = indexManager.getIndexEntries();
+        FileDiffer fileDiffer = new FileDiffer();
+
+        boolean hasDiff = false;
+        for (IndexEntry entry : indexEntries) {
+            Path filePath = Paths.get(entry.getFilePath());
+            if (Files.exists(filePath)) {
+                String indexContent = new String(ObjectLoader.loadBlob(entry.getSha1()));
+                String workingContent = new String(Files.readAllBytes(filePath));
+
+                DiffResult diffResult = fileDiffer.calculateDiff(indexContent, workingContent);
+                if (diffResult.hasChanges()) {
+                    System.out.println("--- a/" + entry.getFilePath());
+                    System.out.println("+++ b/" + entry.getFilePath());
+                    diffResult.getDiffLines().forEach(line -> System.out.println(line.type == ChangeType.ADDED ? "+" + line.text : "-" + line.text));
+                    System.out.println();
+                    hasDiff = true;
+                }
+            }
+        }
+        if (!hasDiff) {
+            System.out.println("No changes found.");
+        }
+    }
+
+    //Handles 'diff' with one argument: compares a commit and the working directory
+    public static void handleDiffCommitAndWorkingDir(String commitOrBranch) throws IOException {
+        System.out.println("Comparing " + commitOrBranch + " with working directory...");
+        ReferenceManager refManager = new ReferenceManager();
+        String commitSha = refManager.getBranchCommit(commitOrBranch);
+        if (commitSha == null) {
+            // Assume it's a direct SHA
+            commitSha = commitOrBranch;
+        }
+
+        CommitObject commit = ObjectLoader.loadCommit(commitSha);
+        if (commit == null) {
+            System.err.println("Error: Commit '" + commitOrBranch + "' not found.");
+            return;
+        }
+
+        TreeObject tree = ObjectLoader.loadTree(commit.getTreeSha1());
+        FileDiffer fileDiffer = new FileDiffer();
+
+        boolean hasDiff = false;
+        for (TreeEntry entry : tree.getEntries()) {
+            if ("blob".equals(entry.getType())) {
+                Path filePath = Paths.get(entry.getName());
+                if (Files.exists(filePath)) {
+                    String commitContent = new String(ObjectLoader.loadBlob(entry.getObjectSha1Id()));
+                    String workingContent = new String(Files.readAllBytes(filePath));
+
+                    DiffResult diffResult = fileDiffer.calculateDiff(commitContent, workingContent);
+                    if (diffResult.hasChanges()) {
+                        System.out.println("--- a/" + entry.getName());
+                        System.out.println("+++ b/" + entry.getName());
+                        diffResult.getDiffLines().forEach(line -> System.out.println(line.type == ChangeType.ADDED ? "+" + line.text : "-" + line.text));
+                        System.out.println();
+                        hasDiff = true;
+                    }
+                }
+            }
+        }
+        if (!hasDiff) {
+            System.out.println("No changes found.");
+        }
+    }
+
+    // Handles 'diff' with two arguments: compares two commits
+    public static void handleDiffCommits(String commit1, String commit2) throws IOException {
+        System.out.println("Comparing commits " + commit1 + " and " + commit2 + "...");
+        ReferenceManager refManager = new ReferenceManager();
+        
+        String sha1 = refManager.getBranchCommit(commit1);
+        if (sha1 == null) {
+            sha1 = commit1;
+        }
+        
+        String sha2 = refManager.getBranchCommit(commit2);
+        if (sha2 == null) {
+            sha2 = commit2;
+        }
+
+        CommitObject commitObj1 = ObjectLoader.loadCommit(sha1);
+        CommitObject commitObj2 = ObjectLoader.loadCommit(sha2);
+
+        if (commitObj1 == null || commitObj2 == null) {
+            System.err.println("Error: Could not find one or both commits.");
+            return;
+        }
+
+        TreeObject tree1 = ObjectLoader.loadTree(commitObj1.getTreeSha1());
+        TreeObject tree2 = ObjectLoader.loadTree(commitObj2.getTreeSha1());
+        FileDiffer fileDiffer = new FileDiffer();
+
+        TreeDiffResult diffResult = MergeUtils.diffTrees(tree1.getSha1Id(), tree2.getSha1Id());
+        
+        boolean hasDiff = false;
+        for (TreeDiffResult.TreeEntryWithPath entry : diffResult.getModifiedFiles()) {
+            String filePath = entry.getFullPath();
+            String content1 = new String(ObjectLoader.loadBlob(entry.getEntry().getObjectSha1Id()));
+            String content2 = new String(ObjectLoader.loadBlob(ObjectLoader.loadTree(tree2.getSha1Id()).getEntries().stream().filter(e -> e.getName().equals(entry.getEntry().getName())).findFirst().get().getObjectSha1Id()));
+            
+            DiffResult fileDiff = fileDiffer.calculateDiff(content1, content2);
+            if (fileDiff.hasChanges()) {
+                System.out.println("--- a/" + filePath);
+                System.out.println("+++ b/" + filePath);
+                fileDiff.getDiffLines().forEach(line -> System.out.println(line.type == ChangeType.ADDED ? "+" + line.text : "-" + line.text));
+                System.out.println();
+                hasDiff = true;
+            }
+        }
+        if (!hasDiff) {
+            System.out.println("No changes found.");
+        }
     }
 }
