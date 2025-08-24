@@ -9,6 +9,8 @@ import java.util.Comparator;
 import java.util.Formatter;
 import java.util.List;
 
+import utils.Content;
+
 public class TreeObject {
     private String treeSha1Id;
     private List<TreeEntry> entries;
@@ -97,4 +99,23 @@ public class TreeObject {
             return null;
         }
     }
+
+    public void save(){
+        String sha1 = getSha1Id();
+        if(sha1 == null || sha1.isEmpty()){
+            System.err.println("Tree SHA-1 is null or empty. Cannot save tree.");
+            return;
+        }
+        try {
+            byte[] contentBytes = serializeContentToBytes();
+            if (contentBytes != null) {
+                Content.saveObject(sha1, contentBytes);
+            } else {
+                System.err.println("Failed to serialize tree content.");
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to save tree: " + e.getMessage());
+        }
+    }
+
 }

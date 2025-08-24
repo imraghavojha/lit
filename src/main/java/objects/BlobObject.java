@@ -48,4 +48,12 @@ public class BlobObject {
     public String getSha1(){
         return calculateSha1();
     } 
+
+    public void save(){
+        try {
+            Content.saveObject(getSha1(), content);
+        } catch (IOException e) {
+            System.err.println("Failed to save blob: " + e.getMessage());
+        }
+    }
 }

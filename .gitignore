@@ -1,0 +1,12 @@
+
+*.class
+
+instructions.txt
+
+.lit
+
+sample
+
+# Gradle
+.gradle
+build/

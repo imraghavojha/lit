@@ -2,42 +2,49 @@
 
 `Lit` is a learning project that aims to recreate the core functionality of the popular version control system, Git, from the ground up using Java. This project explores the fundamental data structures and concepts that power Git.
 
-## Current Prototype Features
+### What's Currently Working:
 
-The current prototype successfully implements the in-memory representation of Git's primary data objects. It can take a sample directory structure and model it according to Git's internal logic.
+The prototype has evolved into a functional command-line tool that successfully manages a repository's lifecycle on the file system.
 
-### What Works:
+-   **Repository Initialization (`lit init`):** The system can create a `.lit` directory structure, including the `objects` database, `refs/heads` for branches, and the `HEAD` file to manage the current state.
 
-- **Blob Objects**: The system can take any file and generate a `BlobObject`. This object represents the file's content and calculates its unique SHA-1 hash.
-- **Tree Objects**: The system can recursively traverse a directory and create a `TreeObject`. This object represents the directory's state, containing a sorted list of entries for blobs (files) and other trees (subdirectories), and calculates a unique SHA-1 hash for that directory snapshot.
-- **Commit Objects**: The system can create a `CommitObject` that ties a root `TreeObject` to metadata, including an author, a commit message, and a parent commit. This effectively creates a snapshot of the project's state at a specific point in time.
+-   **Core Git Objects:**
+    -   **Blob Objects:** The system generates a `BlobObject` from a file's content, calculates its SHA-1 hash, and saves it to the object database.
+    -   **Tree Objects:** The system recursively creates `TreeObject`s from the staging area (the index), representing a complete directory snapshot.
+    -   **Commit Objects:** The system creates `CommitObject`s that link a root `TreeObject` to metadata, including an author, a commit message, and a parent commit, effectively saving a snapshot of the project.
 
-The `Main.java` entry point currently serves as a test runner that demonstrates the creation of these objects based on a sample project directory.
+-   **Core Workflow Commands:**
+    -   **Staging Area (`lit add`):** A `.lit/index` file acts as a staging area. The `add` command hashes a file, saves it as a blob, and adds it to the index for the next commit.
+    -   **Committing (`lit commit`):** The `commit` command orchestrates the entire commit process: building a tree from the index, identifying the parent commit, creating a new commit object, and updating the current branch to point to the new commit.
 
-## What We're Working On
+-   **Branching and Navigation:**
+    -   **Branching (`lit branch`):** The system supports creating new branches, which are pointers to specific commits.
+    -   **Switching (`lit switch`):** Users can switch between different branches or check out a specific commit. This command updates the `HEAD`, reconstructs the working directory to match the target commit's state, and updates the index accordingly.
 
-Our vision is to evolve this prototype into a command-line tool that can manage a real repository on the file system.
+---
 
-Based on our project plan, we are now working towards implementing the following key features in phases:
+### Next Steps & Future Vision
 
-### Phase 1: Establish the Repository
+Our vision is to enhance `Lit` with more advanced features and robust tooling, making it a more powerful and user-friendly version control system.
 
-We are working on creating a persistent repository on the file system. This involves:
+#### Phase 1: Advanced Commands & Workflow
 
-- **Creating the `.lit` directory structure:** Implementing a `lit init` command that creates the necessary directories (`.lit/objects`, `.lit/refs/heads`) and the `HEAD` file to store all repository data.
-- **Object Serialization:** Modifying our object classes to save themselves to the `.lit/objects` directory, using their SHA-1 hash as the filename.
+We are now focused on implementing more complex and helpful Git commands to enrich the user's workflow.
 
-### Phase 2: Implement the Core Workflow
+-   **A "Cool" `lit log` command:** We will implement a `log` command to display the history of commits. The goal is to go beyond a simple list and create a well-formatted output showing the commit hash, author, date, and message for each commit in the current branch's history.
 
-We are building the command-line interface (CLI) and the core user workflow. This includes:
+-   **Branch Merging (`lit merge`):** A crucial next step is to implement branch merging. This will involve developing the logic to combine the histories of two branches, starting with a "fast-forward" merge and then tackling more complex three-way merges.
 
-- **The Staging Area (Index):** Designing and implementing a `.lit/index` file to serve as the staging area, allowing users to craft their commits.
-- **`lit add <file>` command:** Creating the logic to hash a file into a blob, save it, and add its information to the index.
-- **`lit commit` command:** Orchestrating the entire commit process: creating a tree from the index, finding the parent commit, creating a new commit object, and updating the current branch to point to the new commit.
+-   **The "Safety Net" Undo (`lit undo`):** To make `Lit` more forgiving, we will add a simple, human-friendly command for undoing common actions without needing to understand complex commands like `reset`.
+    -   `lit undo --commit`: This would undo the most recent commit but keep the changes from that commit in the staging area (index). This is perfect for when you commit but immediately realize you forgot to add a file.
+    -   `lit undo --add`: This would unstage all files from the staging area, effectively undoing all `lit add` commands since the last commit.
 
-### Phase 3: Enable Branching
+#### Phase 2: Developer Experience & Robustness
 
-We are focused on implementing Git's powerful branching capabilities. This involves:
+To ensure the project is stable and easy to contribute to, we will focus on internal improvements and developer-facing features.
 
-- **`lit branch <branch-name>` command:** Adding the ability to create new branches, which are essentially pointers to specific commits.
-- **`lit switch <branch-name>` command:** Allowing users to switch between branches by updating the `HEAD` file and, eventually, updating the working directory to reflect the state of the switched branch.
+-   **Comprehensive Help (`--help`):** We will implement a global `--help` flag and command-specific help (e.g., `lit commit --help`) to provide users with clear, accessible documentation directly from the command line.
+
+-   **Unit Testing (JUnit):** We will create a comprehensive suite of unit tests using a framework like JUnit. This is critical to ensure that existing features remain stable as we add new functionality and will help us catch bugs early.
+
+-   **Build Management (Gradle):** To streamline the development process, we will integrate a build manager like Gradle or Maven. This will automate the process of compiling the code, managing dependencies, running tests, and packaging the application.
