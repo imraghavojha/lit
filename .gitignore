@@ -9,4 +9,6 @@ sample
 
 # Gradle
 .gradle
+gradle/
+gradlew
 build/
