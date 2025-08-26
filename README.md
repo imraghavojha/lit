@@ -1,50 +1,78 @@
-# Lit: A Git Clone in Java
+# Lit: A Lightweight Local Version Control System
 
-`Lit` is a learning project that aims to recreate the core functionality of the popular version control system, Git, from the ground up using Java. This project explores the fundamental data structures and concepts that power Git.
+Lit is a minimalist version control system implemented in Java, inspired by Git. Designed for local use, Lit enables developers to track code changes, manage versions, and merge branches without requiring a remote server. It serves as an educational tool to explore the core mechanics of version control systems.
 
-### What's Currently Working:
+## Features
 
-The prototype has evolved into a functional command-line tool that successfully manages a repository's lifecycle on the file system.
+- **Local Version Control**: Track changes, create branches, and manage commits locally.
+- **Git-Inspired Commands**: Familiar commands like `init`, `add`, `commit`, `branch`, `merge`, and more.
+- **Simple Setup**: Built with Java and Gradle for easy compilation and execution.
+- **Educational Focus**: Demonstrates fundamental version control concepts in a lightweight package.
 
--   **Repository Initialization (`lit init`):** The system can create a `.lit` directory structure, including the `objects` database, `refs/heads` for branches, and the `HEAD` file to manage the current state.
+## Prerequisites
 
--   **Core Git Objects:**
-    -   **Blob Objects:** The system generates a `BlobObject` from a file's content, calculates its SHA-1 hash, and saves it to the object database.
-    -   **Tree Objects:** The system recursively creates `TreeObject`s from the staging area (the index), representing a complete directory snapshot.
-    -   **Commit Objects:** The system creates `CommitObject`s that link a root `TreeObject` to metadata, including an author, a commit message, and a parent commit, effectively saving a snapshot of the project.
+To use Lit, ensure you have the following installed:
+- **Java Development Kit (JDK)**: Version 11 or higher.
+- **Gradle**: Used for building the project (included as a Gradle wrapper).
 
--   **Core Workflow Commands:**
-    -   **Staging Area (`lit add`):** A `.lit/index` file acts as a staging area. The `add` command hashes a file, saves it as a blob, and adds it to the index for the next commit.
-    -   **Committing (`lit commit`):** The `commit` command orchestrates the entire commit process: building a tree from the index, identifying the parent commit, creating a new commit object, and updating the current branch to point to the new commit.
+## Getting Started
 
--   **Branching and Navigation:**
-    -   **Branching (`lit branch`):** The system supports creating new branches, which are pointers to specific commits.
-    -   **Switching (`lit switch`):** Users can switch between different branches or check out a specific commit. This command updates the `HEAD`, reconstructs the working directory to match the target commit's state, and updates the index accordingly.
+### Building the Project
 
----
+1. Clone or download the Lit repository to your local machine.
+2. Navigate to the project’s root directory in your terminal.
+3. Build the project using the Gradle wrapper:
+   ```bash
+   ./gradlew build
+   ```
+   This compiles the source code and generates a `.jar` file in the `build/libs` directory.
 
-### Next Steps & Future Vision
+### Running the Command-Line Interface (CLI)
 
-Our vision is to enhance `Lit` with more advanced features and robust tooling, making it a more powerful and user-friendly version control system.
+Lit’s CLI is currently executed from the `sample` directory using Gradle’s `run` task with the `--args` flag.
 
-#### Phase 1: Advanced Commands & Workflow
+Example commands:
+```bash
+# Initialize a new Lit repository
+./gradlew run --args="init"
 
-We are now focused on implementing more complex and helpful Git commands to enrich the user's workflow.
+# Commit changes with a message
+./gradlew run --args="commit -m 'Initial commit'"
+```
 
--   **A "Cool" `lit log` command:** We will implement a `log` command to display the history of commits. The goal is to go beyond a simple list and create a well-formatted output showing the commit hash, author, date, and message for each commit in the current branch's history.
+For a streamlined experience:
+1. Run `./gradlew distZip` to generate a distribution in the `build/distributions` directory.
+2. Extract the distribution and add the `bin` directory to your system’s `PATH`.
+3. Run Lit commands directly, e.g., `lit init`.
 
--   **Branch Merging (`lit merge`):** A crucial next step is to implement branch merging. This will involve developing the logic to combine the histories of two branches, starting with a "fast-forward" merge and then tackling more complex three-way merges.
+## Core Commands
 
--   **The "Safety Net" Undo (`lit undo`):** To make `Lit` more forgiving, we will add a simple, human-friendly command for undoing common actions without needing to understand complex commands like `reset`.
-    -   `lit undo --commit`: This would undo the most recent commit but keep the changes from that commit in the staging area (index). This is perfect for when you commit but immediately realize you forgot to add a file.
-    -   `lit undo --add`: This would unstage all files from the staging area, effectively undoing all `lit add` commands since the last commit.
+| Command                     | Description                                                                 |
+|-----------------------------|-----------------------------------------------------------------------------|
+| `lit init`                  | Initializes a new Lit repository in the current directory.                  |
+| `lit add <file>`            | Stages a file’s contents to the index.                                      |
+| `lit commit -m "<message>"` | Commits staged changes with a message.                                      |
+| `lit status`                | Displays the status of the working directory, index, and untracked files.   |
+| `lit log`                   | Shows the commit history.                                                  |
+| `lit branch <branch-name>`  | Creates a new branch.                                                      |
+| `lit switch <branch-name>`  | Switches to the specified branch, updating the working directory.           |
+| `lit merge <branch-name> -m "<message>"` | Merges changes from the specified branch into the current branch. |
+| `lit rm <file>`             | Removes a file from the working tree and index.                             |
+| `lit diff [commit1] [commit2]` | Shows differences between commits, working directory, or index.          |
 
-#### Phase 2: Developer Experience & Robustness
+## Project Goals
 
-To ensure the project is stable and easy to contribute to, we will focus on internal improvements and developer-facing features.
+Lit is a functional clone of Git’s core features, built to illustrate the principles of version control systems. It’s ideal for learning how version control system like Git works under the hood or for lightweight local version control in small projects. 
 
--   **Comprehensive Help (`--help`):** We will implement a global `--help` flag and command-specific help (e.g., `lit commit --help`) to provide users with clear, accessible documentation directly from the command line.
+You can check [Documentation](documentation.md) for further details on different Lit commands.
 
--   **Unit Testing (JUnit):** We will create a comprehensive suite of unit tests using a framework like JUnit. This is critical to ensure that existing features remain stable as we add new functionality and will help us catch bugs early.
+## Contributing
 
--   **Build Management (Gradle):** To streamline the development process, we will integrate a build manager like Gradle or Maven. This will automate the process of compiling the code, managing dependencies, running tests, and packaging the application.
+Contributions are welcome! To contribute:
+1. Fork the repository.
+2. Create a feature branch (`lit branch feature-name`).
+3. Submit a pull request with your changes.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
